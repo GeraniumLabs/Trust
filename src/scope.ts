@@ -4,7 +4,7 @@
 
 import { DurableObject } from "cloudflare:workers";
 import type { Corroboration, Derivation, Entry, RememberInput, SourceRef, Status, TrustTier } from "./types";
-import { makeJudge, type Judge, type JudgeEnv, type Judgment, type MemoryText } from "./judge";
+import { makeJudge, thresholdsFor, type Judge, type JudgeEnv, type Judgment, type MemoryText, type Thresholds } from "./judge";
 
 const TTL_MS = 60 * 60 * 1000;
 const TRUST_WEIGHT: Record<TrustTier, number> = { reviewed: 3, sourced: 2, unverified: 1 };
@@ -12,9 +12,6 @@ const TRUST_WEIGHT: Record<TrustTier, number> = { reviewed: 3, sourced: 2, unver
 const STATUS_PENALTY: Record<string, number> = { active: 0, contested: 1.5, stale: 1.5, superseded: 2.5 };
 const TRUST_RANK: Record<TrustTier, number> = { unverified: 0, sourced: 1, reviewed: 2 };
 
-// Minimum judge confidence before a relation changes anything. Duplicates have the highest bar
-// because a merge folds the new write into an existing entry.
-const ACT_AT: Record<string, number> = { duplicate: 0.75, contradicts: 0.5, supersedes: 0.5, refines: 0.5 };
 const NEIGHBOURS = 5;
 
 interface ScopeEnv extends JudgeEnv {
@@ -90,7 +87,7 @@ export class Scope extends DurableObject<ScopeEnv> {
     const judgments = candidates.length ? await this.judge.judge(this.asText({ title: input.title, body: input.body, sources: sources.map((s) => s.uri), kind }), candidates.map((c) => this.asText(c))) : [];
     const pairs = candidates.map((c, i) => ({ c, j: judgments[i] })).filter((p) => p.j);
     const best = (rel: string, f: (c: Entry) => boolean = () => true) =>
-      pairs.filter((p) => p.j.relation === rel && p.j.confidence >= ACT_AT[rel] && f(p.c)).sort((a, b) => b.j.confidence - a.j.confidence)[0];
+      pairs.filter((p) => p.j.relation === rel && this.clears(p.j, rel) && f(p.c)).sort((a, b) => b.j.confidence - a.j.confidence)[0];
 
     // 1. Duplicate of an active entry: fold this write in as corroboration instead of a new entry.
     const dup = best("duplicate", (c) => c.status === "active");
@@ -132,7 +129,7 @@ export class Scope extends DurableObject<ScopeEnv> {
     // 3. Supersedes: the older entry steps aside, unless it carries more trust than this write.
     //    A lower-trust write cannot retire a higher-trust memory on its own; that goes to review.
     const supersedes = pairs
-      .filter((p) => p.j.relation === "supersedes" && p.j.confidence >= ACT_AT.supersedes && !actions.has(p.c.id) && p.c.status !== "contested")
+      .filter((p) => p.j.relation === "supersedes" && this.clears(p.j, "supersedes") && !actions.has(p.c.id) && p.c.status !== "contested")
       .sort((a, b) => b.j.confidence - a.j.confidence || TRUST_RANK[b.c.trust as TrustTier] - TRUST_RANK[a.c.trust as TrustTier]);
     for (const p of supersedes) {
       if (TRUST_RANK[trust] >= TRUST_RANK[p.c.trust as TrustTier]) {
@@ -147,6 +144,17 @@ export class Scope extends DurableObject<ScopeEnv> {
     this.recordRelations(id, pairs, actions);
     await this.touchTtl();
     return this.get(id)!;
+  }
+
+  // Bars come from the judge that actually produced the judgment, so a model call that fell
+  // back to the heuristic is held to the heuristic's bars.
+  private clears(j: Judgment, rel: string) {
+    return j.confidence >= (thresholdsFor(j.judge, this.env)[rel as keyof Thresholds] ?? 1);
+  }
+
+  async judgeConfig() {
+    const judge = this.judge.name;
+    return { judge, thresholds: thresholdsFor(judge, this.env), fallbackThresholds: thresholdsFor("heuristic") };
   }
 
   // Nearest neighbours of a new write: same kind, still live, not its own parents.

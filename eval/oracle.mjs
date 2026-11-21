@@ -13,10 +13,11 @@ import { readFileSync } from "node:fs";
 const here = new URL(".", import.meta.url);
 const key = (newer, older) => `${newer.trim()}\u0000${older.trim()}`;
 const gold = new Map();
-for (const line of readFileSync(new URL("gold/pairs.jsonl", here), "utf8").trim().split("\n")) {
-  const p = JSON.parse(line);
-  gold.set(key(p.newer.title, p.older.title), p.label);
-}
+for (const file of ["gold/pairs.jsonl", "gold/pairs-hard.jsonl"])
+  for (const line of readFileSync(new URL(file, here), "utf8").trim().split("\n")) {
+    const p = JSON.parse(line);
+    gold.set(key(p.newer.title, p.older.title), p.label);
+  }
 const { tasks } = JSON.parse(readFileSync(new URL("gold/tasks.json", here), "utf8"));
 for (const t of tasks) {
   const title = Object.fromEntries(t.steps.map((s) => [s.key, s.title]));

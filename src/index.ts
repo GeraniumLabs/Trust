@@ -134,6 +134,10 @@ const handler = {
           return json(await scopeStub("judge-scratch").judgeOnly(body.newer, body.older));
         }
 
+        case "judge-config": {
+          return json(await scopeStub("judge-scratch").judgeConfig());
+        }
+
         case "relations": {
           return json(await scopeStub(parts[4]).relations());
         }

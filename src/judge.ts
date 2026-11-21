@@ -46,6 +46,36 @@ export interface JudgeEnv {
   TRUST_JUDGE_URL?: string; // base URL for systemone, e.g. http://localhost:11434
   TRUST_JUDGE_KEY?: string; // bearer token for systemone (a secret)
   TRUST_JUDGE_TIMEOUT_MS?: string;
+  // Override the bars a judgment must clear before Trust acts on it. JSON, either flat for all
+  // model judges, {"duplicate":0.8}, or keyed by judge name, {"systemone:jev-latest":{"supersedes":0.75}}.
+  TRUST_JUDGE_THRESHOLDS?: string;
+}
+
+// ---------- thresholds ----------
+// A judgment changes nothing unless its confidence clears the bar for its relation.
+// Duplicates have the highest bar: a merge folds one write into another, the costliest mistake.
+// Supersedes is next: retiring a memory that is still true. The defaults come from the first Jev
+// run (eval/results/jev.json): every correct supersede scored 0.80+, and two real contradictions
+// scored 0.62 and 0.74, so contradicts stays at 0.5. Each model should be re-checked against its
+// own eval run; `node eval/score.mjs` prints a suggested bar per relation.
+export type Thresholds = Record<"duplicate" | "contradicts" | "supersedes" | "refines", number>;
+export const MODEL_THRESHOLDS: Thresholds = { duplicate: 0.75, contradicts: 0.5, supersedes: 0.7, refines: 0.5 };
+// The heuristic's confidences are fixed constants, not probabilities, so it keeps its own bars.
+export const HEURISTIC_THRESHOLDS: Thresholds = { duplicate: 0.75, contradicts: 0.5, supersedes: 0.5, refines: 0.5 };
+
+export function thresholdsFor(judge: string, env: Pick<JudgeEnv, "TRUST_JUDGE_THRESHOLDS"> = {}): Thresholds {
+  if (judge === "heuristic") return HEURISTIC_THRESHOLDS;
+  let over: Record<string, unknown> = {};
+  try {
+    over = env.TRUST_JUDGE_THRESHOLDS ? JSON.parse(env.TRUST_JUDGE_THRESHOLDS) : {};
+  } catch {
+    over = {}; // a malformed override never blocks writes
+  }
+  const flat = Object.fromEntries(Object.entries(over).filter(([, v]) => typeof v === "number"));
+  const keyed = (over[judge] && typeof over[judge] === "object" ? over[judge] : {}) as Record<string, number>;
+  const out = { ...MODEL_THRESHOLDS, ...flat, ...keyed } as Thresholds;
+  for (const k of Object.keys(out) as (keyof Thresholds)[]) if (typeof out[k] !== "number" || out[k] < 0 || out[k] > 1) out[k] = MODEL_THRESHOLDS[k];
+  return out;
 }
 
 // ---------- heuristic ----------
@@ -95,11 +125,13 @@ export function heuristicRelation(newer: MemoryText, older: MemoryText): { relat
   // A figure from the older memory is gone and a new one took its place. Added figures alone
   // (a refinement adding a p95) don't count.
   if ([...on].some((x) => !nn.has(x)) && [...nn].some((x) => !on.has(x))) return { relation: "contradicts", confidence: 0.55 };
-  // A merge folds one write into another, so the heuristic only clears the merge bar (0.75)
-  // on near-identical wording or high overlap backed by a shared source.
+  // The heuristic only clears the merge bar (0.75) on identical text. On the eval sets its other
+  // duplicate verdicts were right 29% of the time, and near-duplicates that add one detail are
+  // exactly what it can't tell apart, so those are logged at 0.7 and never merged.
   const addsFigure = [...nn].some((x) => !on.has(x)); // new figures are new information
-  if (!addsFigure && (jac >= 0.5 || (con >= 0.7 && nw.size <= ow.size * 1.3)))
-    return { relation: "duplicate", confidence: Math.min(0.95, 0.35 + 0.7 * jac + (shared ? 0.1 : 0)) };
+  const norm = (t: string) => t.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  if (norm(nt) === norm(ot)) return { relation: "duplicate", confidence: 0.99 };
+  if (!addsFigure && (jac >= 0.5 || (con >= 0.7 && nw.size <= ow.size * 1.3))) return { relation: "duplicate", confidence: 0.7 };
   let covered = 0;
   for (const w of ow) if (nw.has(w)) covered++;
   if (covered / Math.max(1, ow.size) >= 0.5 && (nw.size > ow.size || addsFigure)) return { relation: "refines", confidence: 0.55 };

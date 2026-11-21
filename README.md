@@ -58,6 +58,7 @@ Origin is attached by the server from the session. Agents can add sources but ca
 | GET / POST | `conflicts/:scope` / `conflicts/:id` | List conflicts, or resolve one: `keep_a`, `keep_b`, `keep_both`, `retract_both` |
 | GET | `verify/:scope/:id` | Check a memory's signature over its origin and source versions |
 | GET | `export/:scope` | The scope as an OKF-style bundle: one Markdown file per memory, plus `log.md` and `index.md` |
+| GET | `judge-config` | The judge in use and the bars it must clear |
 | GET | `relations/:scope` | Every judgment made on writes: relation, confidence, judge, and what Trust did |
 | POST | `judge` | Judge `{ newer, older[] }` without storing anything (used by `eval/`) |
 | GET | `graph` | Everything, for the demo's graph view |
@@ -68,12 +69,12 @@ On every write, the Scope finds up to five similar memories of the same kind and
 
 | Relation | What Trust does |
 | --- | --- |
-| duplicate (≥ 0.75) | No new entry. The write's origin and sources are added to the existing memory as a corroboration, the version bumps, and the memory is re-signed |
-| contradicts (≥ 0.5, other session) | Both memories become `contested` and a conflict opens for review |
-| supersedes (≥ 0.5) | The older memory becomes `superseded` and ranks last in recall. A write with lower trust than the memory it would replace opens a review instead |
+| duplicate | No new entry. The write's origin and sources are added to the existing memory as a corroboration, the version bumps, and the memory is re-signed |
+| contradicts (other session) | Both memories become `contested` and a conflict opens for review |
+| supersedes | The older memory becomes `superseded` and ranks last in recall. A write with lower trust than the memory it would replace opens a review instead |
 | refines, unrelated | Logged only |
 
-Every judgment is stored with the judge's name, its confidence, and the action taken (`relations/:scope`).
+A judgment acts only when its confidence clears the bar for its relation. Model judges default to duplicate 0.75, supersedes 0.7, contradicts 0.5; the heuristic merges only identical text. Override with `TRUST_JUDGE_THRESHOLDS`, flat or per judge (see `eval/README.md`); `GET judge-config` shows what's in force. Every judgment is stored with the judge's name, its confidence, and the action taken (`relations/:scope`).
 
 Pick the judge with `TRUST_JUDGE`:
 
@@ -86,7 +87,7 @@ Pick the judge with `TRUST_JUDGE`:
 
 A model call that fails or takes longer than `TRUST_JUDGE_TIMEOUT_MS` (1,500 ms for Workers AI, 5,000 ms for a URL) falls back to the heuristic, and the judgment records why. A slow model never blocks a write. With Jev, memory text leaves Cloudflare; with Clef on Workers AI or a local Kev, it doesn't.
 
-`eval/` has 100 hand-labeled pairs and 12 scenario tasks for comparing judges. So far: a perfect (oracle) judge passes everything, and the heuristic scores 58% on pairs and passes 8 of 12 tasks. Model runs are next.
+`eval/` has 160 hand-labeled pairs (a core set and a hard set) and 12 scenario tasks for comparing judges and setting bars. So far: Jev scores 98% on the core set and passes every task; the heuristic scores 58% (core) and 48% (hard) with no wrong merges.
 
 ## MCP
 

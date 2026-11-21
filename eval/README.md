@@ -6,7 +6,8 @@ Trust asks a judge how each new memory relates to the memories already in its sc
 
 | File | What it is |
 | --- | --- |
-| `gold/pairs.jsonl` | 100 labeled pairs (older memory, newer memory, relation), 20 per relation, across code, ops, legal, preferences and research. 47 are marked `hard`. Each has a one-line `why`. |
+| `gold/pairs.jsonl` | Core set: 100 labeled pairs (older memory, newer memory, relation), 20 per relation, across code, ops, legal, preferences and research. 47 are marked `hard`. Each has a one-line `why`. |
+| `gold/pairs-hard.jsonl` | Hard set: 60 pairs built to separate strong models. Each tricky item names its `trap`: `near-duplicate` (identical except one material detail, so a merge would lose it), `implication` (the conflict only follows from what the claim implies), `multi-fact` (one of several facts differs), `units` (35 days vs five weeks), `same-entity` (same subject, different fact), `negation`. |
 | `gold/tasks.json` | 12 scenario tasks. Agents write memories through the real API, then the end state is checked: entry count, merges, statuses, open conflicts, corroborations, and what recall ranks first. Each step carries its `gold` relations. |
 | `score.mjs` | Runs both against a Worker and prints accuracy, per-label precision/recall/F1, a confusion matrix, costly mistakes and latency. Writes `results/<label>.json`. |
 | `oracle.mjs` | A `/v1/systemone` server that answers from the gold labels. It tests Trust's write policy with a perfect judge. |
@@ -22,7 +23,15 @@ Trust asks a judge how each new memory relates to the memories already in its sc
 | `contradicts` | Same current situation, can't both be true, and nothing says it changed over time. | Marks both `contested` and opens a conflict for review (across sessions only). |
 | `unrelated` | Different subject, even when words overlap. | Nothing. |
 
+For a memory with several facts, the newer one is labeled by what it does to the whole: if it restates everything and one fact differs with a sign of change, it `supersedes`; with no sign of change, it `contradicts`; if it keeps everything and adds a fact, it `refines`.
+
 The hard line is between supersedes and contradicts. With no sign of change ("now", "since v2", "amended", "replaced"), the label is `contradicts`, because a reviewer should decide which one is right.
+
+## Bars
+
+A judgment only changes something when its confidence clears the bar for its relation. Model judges default to duplicate 0.75, supersedes 0.7, contradicts 0.5. Those defaults come from the first Jev run: every correct supersede scored 0.80 or more, and two real contradictions scored 0.62 and 0.74. The heuristic keeps supersedes at 0.5, because its confidences are fixed numbers rather than probabilities, and it merges only identical text.
+
+Override them per deployment with `TRUST_JUDGE_THRESHOLDS`, flat (`{"duplicate":0.8}`) or per judge (`{"workers-ai:clef-flash":{"supersedes":0.8}}`). The scorer reads the bars from the Worker and ends with a calibration table: how each bar performs, and the lowest bar above which every prediction was right. Set each model's bars from its own run.
 
 ## Costly mistakes
 
@@ -60,15 +69,16 @@ npm run dev:offline -- --port 8788 --var TRUST_JUDGE:systemone --var TRUST_JUDGE
 BASE_URL=http://localhost:8788 node eval/score.mjs --label oracle
 ```
 
-A full run is 100 judge calls plus about 30 writes. On Clef-Flash that's roughly 40,000 input tokens.
+A full run is 160 judge calls plus about 30 writes, roughly 60,000 input tokens. `--set core` or `--set hard` runs one set.
 
 ## Results so far
 
 | Judge | Pair accuracy | Macro-F1 | Harmful merges | Missed conflicts | Tasks |
 | --- | --- | --- | --- | --- | --- |
 | Oracle (gold labels) | 100% | 100% | 0 | 0 | 12/12 |
-| Jev (`jev-latest`, Nov 21) | 98% | 98% | 0 | 0 | 12/12 |
-| Heuristic | 58% | 56.5% | 2 | 12 of 20 | 8/12 |
+| Jev (`jev-latest`, Nov 21, core set only) | 98% | 98% | 0 | 0 | 12/12 |
+| Heuristic, core set | 58% | 56.5% | 0 | 12 of 20 | 8/12 |
+| Heuristic, hard set | 48% | 47% | 0 | 12 of 14 | |
 | Clef-Flash | not run yet | | | | |
 | Kev | not run yet | | | | |
 
@@ -82,5 +92,5 @@ The heuristic catches explicit changes and figure swaps (supersedes F1 86%) and 
 
 - **One annotator.** Claude wrote and labeled every item. Before using these numbers to choose thresholds, have someone read the 47 `hard` items and the `why` lines and correct any labels they disagree with.
 - **Synthetic.** The memories are realistic but invented. Where they mention real products, they're used only as fixtures. Add pairs from real Mergery and Trust traffic as it builds up.
-- **The heuristic was tuned once against this set.** After the first run (34%), it got generic fixes: containment overlap for short memories, a check for figures that differ, and a broader list of change words. It then scored 58%. Treat its number as optimistic. Model judges have not seen the set.
+- **The heuristic was tuned against the core set.** After the first run (34%), it got generic fixes: containment overlap for short memories, a check for figures that differ, and a broader list of change words. It then scored 58%. After the hard set showed it merging near-duplicates, it was limited to merging identical text. Treat its numbers as optimistic. Model judges have not seen either set.
 - **Small.** With 20 items per label, a single item moves per-label recall by 5 points.

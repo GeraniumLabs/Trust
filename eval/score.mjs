@@ -5,6 +5,7 @@
 //   BASE_URL=https://trust.example node eval/score.mjs
 //   node eval/score.mjs --pairs-only | --tasks-only
 //   node eval/score.mjs --label clef-flash   # name used for eval/results/<label>.json
+//   node eval/score.mjs --set core | hard    # one pair set only (default: both)
 //
 // It scores whichever judge the Worker is configured with (TRUST_JUDGE), so the numbers
 // reflect exactly what production would do: heuristic, Clef/Clef-Flash on Workers AI,
@@ -22,8 +23,9 @@ const opt = (f) => (args.includes(f) ? args[args.indexOf(f) + 1] : undefined);
 const CONCURRENCY = Number(opt("--concurrency") ?? 4);
 
 const LABELS = ["duplicate", "refines", "supersedes", "contradicts", "unrelated"];
-// Same thresholds the Scope uses before a judgment changes anything.
-const ACT_AT = { duplicate: 0.75, contradicts: 0.5, supersedes: 0.5, refines: 0.5 };
+// The bars come from the Worker (GET judge-config), so the scorer applies exactly what it would.
+let BARS = null;
+const barFor = (j) => (j.judge === "heuristic" ? BARS.fallbackThresholds : BARS.thresholds)[j.relation] ?? 0;
 const ACTION = { duplicate: "merge", contradicts: "conflict", supersedes: "supersede", refines: "keep", unrelated: "keep" };
 
 async function api(method, path, body) {
@@ -55,8 +57,10 @@ const quantile = (xs, q) => {
 
 // ---------- pairs ----------
 
-async function scorePairs() {
-  const pairs = readFileSync(join(here, "gold/pairs.jsonl"), "utf8").trim().split("\n").map((l) => JSON.parse(l));
+const SETS = { core: "gold/pairs.jsonl", hard: "gold/pairs-hard.jsonl" };
+
+async function scorePairs(file) {
+  const pairs = readFileSync(join(here, file), "utf8").trim().split("\n").map((l) => JSON.parse(l));
   // Each demo allows a limited number of operations; start a fresh one every 200 calls.
   let demo = await newDemo();
   let used = 0;
@@ -64,8 +68,8 @@ async function scorePairs() {
     if (++used % 200 === 0) demo = await newDemo();
     const t0 = Date.now();
     const [j] = await api("POST", `/demo/${demo}/judge`, { newer: { ...p.newer, sources: p.newer.sources }, older: [{ ...p.older, sources: p.older.sources }] });
-    const acted = j.confidence >= (ACT_AT[j.relation] ?? 0) ? ACTION[j.relation] : "keep";
-    return { id: p.id, domain: p.domain, difficulty: p.difficulty, gold: p.label, pred: j.relation, confidence: j.confidence, judge: j.judge, fallback: j.fallback ?? null, judgeMs: j.ms, roundTripMs: Date.now() - t0, goldAction: ACTION[p.label], action: acted };
+    const acted = j.confidence >= barFor(j) ? ACTION[j.relation] : "keep";
+    return { id: p.id, domain: p.domain, difficulty: p.difficulty, trap: p.trap ?? null, gold: p.label, pred: j.relation, confidence: j.confidence, judge: j.judge, fallback: j.fallback ?? null, judgeMs: j.ms, roundTripMs: Date.now() - t0, goldAction: ACTION[p.label], action: acted };
   });
 
   const confusion = Object.fromEntries(LABELS.map((g) => [g, Object.fromEntries(LABELS.map((p) => [p, 0]))]));
@@ -96,16 +100,19 @@ async function scorePairs() {
     fallbackReasons: [...new Set(results.filter((r) => r.fallback).map((r) => r.fallback))].slice(0, 5),
     byDifficulty: by("difficulty"),
     byDomain: by("domain"),
+    byTrap: by("trap"),
     latencyMs: { judgeP50: quantile(results.map((r) => r.judgeMs), 0.5), judgeP95: quantile(results.map((r) => r.judgeMs), 0.95), roundTripP50: quantile(results.map((r) => r.roundTripMs), 0.5) },
   };
   return { summary, perLabel: per, confusion, results };
 }
 
-function printPairs({ summary: s, perLabel, confusion }) {
-  console.log(`\nPairs: ${s.n} labeled pairs, judge ${s.judge}`);
+function printPairs({ summary: s, perLabel, confusion }, name) {
+  console.log(`\nPairs (${name}): ${s.n} labeled pairs, judge ${s.judge}`);
   console.log(`  accuracy ${pct(s.accuracy)}   macro-F1 ${pct(s.macroF1)}   action accuracy ${pct(s.actionAccuracy)}`);
   console.log(`  by difficulty: ${Object.entries(s.byDifficulty).map(([k, v]) => `${k} ${pct(v)}`).join(", ")}`);
   console.log(`  by domain: ${Object.entries(s.byDomain).map(([k, v]) => `${k} ${pct(v)}`).join(", ")}`);
+  const traps = Object.entries(s.byTrap).filter(([k]) => k !== "null");
+  if (traps.length) console.log(`  by trap: ${traps.map(([k, v]) => `${k} ${pct(v)}`).join(", ")}`);
   console.log(`  judge latency p50 ${s.latencyMs.judgeP50} ms, p95 ${s.latencyMs.judgeP95} ms; fallbacks ${s.fallbacks}`);
   if (s.fallbackReasons.length) {
     console.log(`\n  ⚠ ${s.fallbacks} of ${s.n} model calls failed and fell back to the heuristic, so these are mostly heuristic scores:`);
@@ -121,6 +128,38 @@ function printPairs({ summary: s, perLabel, confusion }) {
   console.log(`    wrongful supersedes ${s.wrongfulSupersedes.length}  ${s.wrongfulSupersedes.join(" ")}`);
   console.log(`    missed conflicts    ${s.missedConflicts.length}  ${s.missedConflicts.join(" ")}`);
   console.log(`    false conflicts     ${s.falseConflicts.length}  ${s.falseConflicts.join(" ")}`);
+}
+
+// ---------- calibration ----------
+// For each relation Trust acts on: how the current bar performs, and the lowest bar above which
+// every prediction of that relation was right. Wrong merges and supersedes cost the most, so a
+// bar is only worth lowering if precision stays at 100%.
+function calibrate(results) {
+  const out = {};
+  for (const rel of ["duplicate", "supersedes", "contradicts"]) {
+    const preds = results.filter((r) => r.pred === rel);
+    const gold = results.filter((r) => r.gold === rel).length;
+    const bar = BARS.thresholds[rel];
+    const at = (t) => {
+      const acted = preds.filter((r) => r.confidence >= t);
+      const right = acted.filter((r) => r.gold === rel).length;
+      return { acted: acted.length, precision: acted.length ? right / acted.length : 1, recall: gold ? right / gold : 0 };
+    };
+    const worstWrong = Math.max(-Infinity, ...preds.filter((r) => r.gold !== rel).map((r) => r.confidence));
+    const lowestRight = Math.min(Infinity, ...preds.filter((r) => r.gold === rel).map((r) => r.confidence));
+    const safe = Number.isFinite(worstWrong) ? Math.min(1, Math.round((worstWrong + 0.01) * 100) / 100) : Number.isFinite(lowestRight) ? lowestRight : bar;
+    out[rel] = { bar, atBar: at(bar), safeBar: safe, atSafe: at(safe), wrongAbove: preds.filter((r) => r.gold !== rel).map((r) => `${r.id}@${r.confidence}`) };
+  }
+  return out;
+}
+
+function printCalibration(c) {
+  console.log(`\nCalibration (all pair sets; current bars from the Worker)`);
+  for (const [rel, x] of Object.entries(c)) {
+    console.log(`  ${rel.padEnd(12)} bar ${x.bar.toFixed(2)}: precision ${pct(x.atBar.precision)}, recall ${pct(x.atBar.recall)}` +
+      `   |  every prediction right at ${x.safeBar.toFixed(2)}+ (recall ${pct(x.atSafe.recall)})` +
+      (x.wrongAbove.length ? `   wrong: ${x.wrongAbove.join(" ")}` : ""));
+  }
 }
 
 // ---------- tasks ----------
@@ -200,14 +239,26 @@ function printTasks({ summary: s, results }) {
 
 const report = { base: BASE, at: new Date().toISOString() };
 if (!flag("--tasks-only")) {
-  report.pairs = await scorePairs();
-  printPairs(report.pairs);
+  const demo = await newDemo();
+  BARS = await api("GET", `/demo/${demo}/judge-config`);
+  report.bars = BARS;
+  console.log(`Judge ${BARS.judge}; bars ${Object.entries(BARS.thresholds).map(([k, v]) => `${k} ${v}`).join(", ")}`);
+  const sets = opt("--set") ? [opt("--set")] : Object.keys(SETS);
+  const all = [];
+  for (const name of sets) {
+    const r = await scorePairs(SETS[name]);
+    report[name === "core" ? "pairs" : `pairs_${name}`] = r;
+    printPairs(r, name);
+    all.push(...r.results);
+  }
+  report.calibration = calibrate(all);
+  printCalibration(report.calibration);
 }
 if (!flag("--pairs-only")) {
   report.tasks = await scoreTasks();
   printTasks(report.tasks);
 }
-const label = opt("--label") ?? (report.pairs?.summary.judge ?? "run").replace(/[^a-z0-9.-]+/gi, "-");
+const label = opt("--label") ?? (BARS?.judge ?? "run").replace(/[^a-z0-9.-]+/gi, "-");
 mkdirSync(join(here, "results"), { recursive: true });
 const file = join(here, "results", `${label}.json`);
 writeFileSync(file, JSON.stringify(report, null, 2));

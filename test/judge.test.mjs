@@ -110,5 +110,21 @@ await test("the heuristic never clears the merge bar when figures differ or are 
   assert.notEqual(added.relation, "duplicate");
 });
 
+await test("thresholds: models default to supersede 0.7, the heuristic keeps its own bars", async () => {
+  assert.equal(J.thresholdsFor("systemone:jev-latest").supersedes, 0.7);
+  assert.equal(J.thresholdsFor("workers-ai:clef-flash").duplicate, 0.75);
+  assert.equal(J.thresholdsFor("heuristic").supersedes, 0.5);
+});
+
+await test("thresholds: overrides apply flat or per judge, and bad values are ignored", async () => {
+  const env = { TRUST_JUDGE_THRESHOLDS: JSON.stringify({ duplicate: 0.8, "workers-ai:clef-flash": { supersedes: 0.85 }, contradicts: 7 }) };
+  assert.equal(J.thresholdsFor("systemone:kev-4b", env).duplicate, 0.8);
+  assert.equal(J.thresholdsFor("systemone:kev-4b", env).supersedes, 0.7);
+  assert.equal(J.thresholdsFor("workers-ai:clef-flash", env).supersedes, 0.85);
+  assert.equal(J.thresholdsFor("workers-ai:clef-flash", env).contradicts, 0.5, "out-of-range value falls back");
+  assert.equal(J.thresholdsFor("heuristic", env).duplicate, 0.75, "overrides never touch the heuristic");
+  assert.equal(J.thresholdsFor("systemone:x", { TRUST_JUDGE_THRESHOLDS: "{not json" }).supersedes, 0.7);
+});
+
 server.close();
 console.log(`\n${passed} passed`);
