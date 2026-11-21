@@ -3,29 +3,32 @@
 // history, sources with content hashes, derivation links, and recall receipts.
 
 import { DurableObject } from "cloudflare:workers";
-import type { Derivation, Entry, RememberInput, SourceRef, Status, TrustTier } from "./types";
+import type { Corroboration, Derivation, Entry, RememberInput, SourceRef, Status, TrustTier } from "./types";
+import { makeJudge, type Judge, type JudgeEnv, type Judgment, type MemoryText } from "./judge";
 
 const TTL_MS = 60 * 60 * 1000;
 const TRUST_WEIGHT: Record<TrustTier, number> = { reviewed: 3, sourced: 2, unverified: 1 };
 // Flagged entries are still recalled, but ranked below clean ones and labeled.
-const STATUS_PENALTY: Record<string, number> = { active: 0, contested: 1.5, stale: 1.5 };
+const STATUS_PENALTY: Record<string, number> = { active: 0, contested: 1.5, stale: 1.5, superseded: 2.5 };
+const TRUST_RANK: Record<TrustTier, number> = { unverified: 0, sourced: 1, reviewed: 2 };
 
-const NEGATION = /\b(not|never|don['’]?t|do not|avoid|no longer|stop|shouldn['’]?t|must not)\b/i;
-const STOP = new Set("the and for with from that this into when then than are was were has have use using via its".split(" "));
-const words = (t: string) => new Set((t.toLowerCase().match(/[a-z0-9_.()]+/g) ?? []).filter((w) => w.length > 2 && !STOP.has(w)));
-const jaccard = (a: Set<string>, b: Set<string>) => {
-  let inter = 0;
-  for (const w of a) if (b.has(w)) inter++;
-  return inter / Math.max(1, a.size + b.size - inter);
-};
+// Minimum judge confidence before a relation changes anything. Duplicates have the highest bar
+// because a merge folds the new write into an existing entry.
+const ACT_AT: Record<string, number> = { duplicate: 0.75, contradicts: 0.5, supersedes: 0.5, refines: 0.5 };
+const NEIGHBOURS = 5;
 
-interface ScopeEnv {
+interface ScopeEnv extends JudgeEnv {
   TRUST_SIGNING_KEY?: string;
 }
 
 export class Scope extends DurableObject<ScopeEnv> {
   private ready = false;
   private fts = false;
+  private judgeImpl: Judge | null = null;
+
+  private get judge(): Judge {
+    return (this.judgeImpl ??= makeJudge(this.env));
+  }
 
   private init() {
     if (this.ready) return;
@@ -42,6 +45,10 @@ export class Scope extends DurableObject<ScopeEnv> {
     sql.exec(`CREATE TABLE IF NOT EXISTS entry_parents (entry TEXT, parent TEXT, PRIMARY KEY (entry, parent))`);
     sql.exec(`CREATE TABLE IF NOT EXISTS receipts (n INTEGER PRIMARY KEY AUTOINCREMENT, entry TEXT, version INTEGER, session TEXT, step INTEGER, rank INTEGER, at INTEGER)`);
     sql.exec(`CREATE TABLE IF NOT EXISTS reviews (id TEXT PRIMARY KEY, from_ref TEXT, title TEXT, original TEXT, proposed TEXT, removed TEXT, status TEXT, reviewer TEXT, entry TEXT, at INTEGER)`);
+    // Every judgment the judge made on a write, kept for audit and for calibrating thresholds.
+    sql.exec(`CREATE TABLE IF NOT EXISTS relations (n INTEGER PRIMARY KEY AUTOINCREMENT, a TEXT, b TEXT, relation TEXT, confidence REAL, judge TEXT, fallback TEXT, ms INTEGER, action TEXT, at INTEGER)`);
+    // A write judged to duplicate an existing entry: its origin and sources, kept on that entry.
+    sql.exec(`CREATE TABLE IF NOT EXISTS corroborations (n INTEGER PRIMARY KEY AUTOINCREMENT, entry TEXT, agent TEXT, session TEXT, supervisor TEXT, step INTEGER, sources TEXT, judge TEXT, confidence REAL, at INTEGER)`);
     sql.exec(`CREATE INDEX IF NOT EXISTS receipts_entry ON receipts (entry)`);
     sql.exec(`CREATE INDEX IF NOT EXISTS entries_session ON entries (origin_session)`);
     try {
@@ -76,13 +83,30 @@ export class Scope extends DurableObject<ScopeEnv> {
     const sources = input.sources ?? [];
     // No sources: stored, but capped at the lowest trust tier.
     const trust: TrustTier = input.derivation === "promoted" ? "reviewed" : sources.length || parents.length ? "sourced" : "unverified";
+    const kind = input.kind ?? "learning";
+
+    // Judge the write against its nearest neighbours before storing it.
+    const candidates = this.neighbours(`${input.title} ${input.body}`, kind, parents);
+    const judgments = candidates.length ? await this.judge.judge(this.asText({ title: input.title, body: input.body, sources: sources.map((s) => s.uri), kind }), candidates.map((c) => this.asText(c))) : [];
+    const pairs = candidates.map((c, i) => ({ c, j: judgments[i] })).filter((p) => p.j);
+    const best = (rel: string, f: (c: Entry) => boolean = () => true) =>
+      pairs.filter((p) => p.j.relation === rel && p.j.confidence >= ACT_AT[rel] && f(p.c)).sort((a, b) => b.j.confidence - a.j.confidence)[0];
+
+    // 1. Duplicate of an active entry: fold this write in as corroboration instead of a new entry.
+    const dup = best("duplicate", (c) => c.status === "active");
+    if (dup) {
+      // The merged write has no id of its own; its judgments are logged against the entry it joined.
+      this.recordRelations(`merged:${dup.c.id}`, pairs, new Map([[dup.c.id, "merged"]]));
+      return { ...(await this.corroborate(dup.c.id, input, trust, dup.j)), deduped: { into: dup.c.id, judge: dup.j.judge, confidence: dup.j.confidence } };
+    }
+
     const id = `${prefix}-${this.next("entry")}`;
     const now = Date.now();
     const o = input.origin;
     this.ctx.storage.transactionSync(() => {
       sql.exec(
         `INSERT INTO entries VALUES (?, ?, ?, ?, 'active', ?, ?, ?, ?, ?, ?, 1, ?, ?, NULL)`,
-        id, input.kind ?? "learning", input.title, input.body, trust, input.derivation ?? "observed",
+        id, kind, input.title, input.body, trust, input.derivation ?? "observed",
         o.agent, o.session, o.supervisor, o.step ?? 0, now, now,
       );
       sql.exec(`INSERT INTO entry_versions VALUES (?, 1, 'active', ?, ?, 'remembered', ?)`, id, input.body, o.agent, now);
@@ -97,9 +121,113 @@ export class Scope extends DurableObject<ScopeEnv> {
     // Attestation: sign the entry with its origin and the exact source versions it cites.
     const signature = await this.sign(this.get(id)!);
     sql.exec(`UPDATE entries SET signature = ? WHERE id = ?`, signature, id);
-    this.detectConflict(id);
+
+    // 2. Contradiction with another session's memory: both become contested and go to review.
+    const actions = new Map<string, string>();
+    const clash = best("contradicts", (c) => c.origin.session !== o.session);
+    if (clash) {
+      this.openConflict(clash.c.id, id, this.reasonFor(clash.j, "contradicts"));
+      actions.set(clash.c.id, "conflict");
+    }
+    // 3. Supersedes: the older entry steps aside, unless it carries more trust than this write.
+    //    A lower-trust write cannot retire a higher-trust memory on its own; that goes to review.
+    const supersedes = pairs
+      .filter((p) => p.j.relation === "supersedes" && p.j.confidence >= ACT_AT.supersedes && !actions.has(p.c.id) && p.c.status !== "contested")
+      .sort((a, b) => b.j.confidence - a.j.confidence || TRUST_RANK[b.c.trust as TrustTier] - TRUST_RANK[a.c.trust as TrustTier]);
+    for (const p of supersedes) {
+      if (TRUST_RANK[trust] >= TRUST_RANK[p.c.trust as TrustTier]) {
+        this.setStatus([p.c.id], "superseded", "judge", `superseded by ${id} (${p.j.judge}, ${p.j.confidence.toFixed(2)})`);
+        actions.set(p.c.id, "superseded");
+      } else if (!clash) {
+        this.openConflict(p.c.id, id, `claims to supersede a ${p.c.trust} memory but is only ${trust} (${p.j.judge}, ${p.j.confidence.toFixed(2)})`);
+        actions.set(p.c.id, "conflict");
+        break;
+      }
+    }
+    this.recordRelations(id, pairs, actions);
     await this.touchTtl();
     return this.get(id)!;
+  }
+
+  // Nearest neighbours of a new write: same kind, still live, not its own parents.
+  private neighbours(text: string, kind: string, parents: string[]): Entry[] {
+    const sql = this.ctx.storage.sql;
+    const terms = [...new Set((text.toLowerCase().match(/[a-z0-9]+/g) ?? []).filter((w) => w.length > 2))].slice(0, 40);
+    let ids: string[] = [];
+    if (terms.length && this.fts) {
+      try {
+        ids = sql
+          .exec(`SELECT id FROM entries_fts WHERE entries_fts MATCH ? ORDER BY bm25(entries_fts) LIMIT 25`, terms.map((t) => `"${t}"`).join(" OR "))
+          .toArray()
+          .map((r: any) => r.id as string);
+      } catch {
+        ids = [];
+      }
+    }
+    if (!ids.length) {
+      ids = (sql.exec(`SELECT id, title, body FROM entries`).toArray() as any[])
+        .map((r) => ({ id: r.id as string, n: terms.filter((t) => `${r.title} ${r.body}`.toLowerCase().includes(t)).length }))
+        .filter((r) => r.n > 0)
+        .sort((a, b) => b.n - a.n)
+        .map((r) => r.id);
+    }
+    return ids
+      .map((id) => this.get(id)!)
+      .filter((e) => e && e.kind === kind && ["active", "stale", "contested"].includes(e.status) && !parents.includes(e.id))
+      .slice(0, NEIGHBOURS);
+  }
+
+  private asText(e: { title: string; body: string; sources?: (SourceRef | string)[]; kind?: string }): MemoryText {
+    return { title: e.title, body: e.body, sources: (e.sources ?? []).map((s) => (typeof s === "string" ? s : s.uri)), kind: e.kind };
+  }
+
+  private reasonFor(j: Judgment, rel: string) {
+    return `${j.judge} judged ${rel} (${j.confidence.toFixed(2)})${j.fallback ? `; ${j.fallback}` : ""}`;
+  }
+
+  private recordRelations(a: string, pairs: { c: Entry; j: Judgment }[], actions: Map<string, string>) {
+    const sql = this.ctx.storage.sql;
+    const now = Date.now();
+    for (const { c, j } of pairs)
+      sql.exec(`INSERT INTO relations (a, b, relation, confidence, judge, fallback, ms, action, at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        a, c.id, j.relation, j.confidence, j.judge, j.fallback ?? null, j.ms, actions.get(c.id) ?? null, now);
+  }
+
+  // A duplicate write becomes corroboration: its origin and sources join the existing entry,
+  // which keeps one body and gains independent support. The write is never silently dropped.
+  private async corroborate(id: string, input: RememberInput, trust: TrustTier, j: Judgment): Promise<Entry> {
+    const sql = this.ctx.storage.sql;
+    const e = this.get(id)!;
+    const o = input.origin;
+    const now = Date.now();
+    const sources = input.sources ?? [];
+    const newTrust = TRUST_RANK[trust] > TRUST_RANK[e.trust] ? trust : e.trust;
+    this.ctx.storage.transactionSync(() => {
+      for (const s of sources) {
+        const sid = `${s.uri}@${s.hash ?? "unhashed"}`;
+        sql.exec(`INSERT OR IGNORE INTO sources VALUES (?, ?, ?, ?)`, sid, s.uri, s.hash ?? null, s.kind ?? "file");
+        sql.exec(`INSERT OR IGNORE INTO entry_sources VALUES (?, ?)`, id, sid);
+      }
+      sql.exec(`INSERT INTO corroborations (entry, agent, session, supervisor, step, sources, judge, confidence, at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        id, o.agent, o.session, o.supervisor, o.step ?? 0, JSON.stringify(sources), j.judge, j.confidence, now);
+      const v = e.version + 1;
+      sql.exec(`UPDATE entries SET version = ?, trust = ?, updated_at = ? WHERE id = ?`, v, newTrust, now, id);
+      sql.exec(`INSERT INTO entry_versions VALUES (?, ?, ?, ?, ?, ?, ?)`, id, v, e.status, e.body, o.agent,
+        `corroborated by ${o.agent} (${o.session}, step ${o.step ?? 0}): "${input.title}" (${j.judge}, ${j.confidence.toFixed(2)})`, now);
+    });
+    sql.exec(`UPDATE entries SET signature = ? WHERE id = ?`, await this.sign(this.get(id)!), id);
+    await this.touchTtl();
+    return this.get(id)!;
+  }
+
+  // Judge a pair or a batch without storing anything (used by the eval harness).
+  async judgeOnly(newer: MemoryText, older: MemoryText[]) {
+    return this.judge.judge(newer, older);
+  }
+
+  async relations() {
+    this.init();
+    return this.ctx.storage.sql.exec(`SELECT * FROM relations ORDER BY n`).toArray();
   }
 
   // ---------- attestation ----------
@@ -108,6 +236,7 @@ export class Scope extends DurableObject<ScopeEnv> {
     return JSON.stringify({
       id: e.id, title: e.title, body: e.body, origin: e.origin, derivation: e.derivation,
       sources: e.sources.map((s) => ({ uri: s.uri, hash: s.hash ?? null })), parents: e.parents,
+      ...(e.corroborations?.length ? { corroborations: e.corroborations.map((c) => ({ agent: c.agent, session: c.session, step: c.step, at: c.at })) } : {}),
     });
   }
 
@@ -126,34 +255,12 @@ export class Scope extends DurableObject<ScopeEnv> {
   }
 
   // ---------- conflicts ----------
-  // Two active entries from different sessions that overlap heavily (shared sources or wording)
-  // but disagree (one negates the other) are both marked contested and sent for review.
-  // A model-based check can replace the heuristic later; the review flow stays the same.
-  private detectConflict(id: string) {
-    const sql = this.ctx.storage.sql;
-    const e = this.get(id)!;
-    const ew = words(`${e.title} ${e.body}`);
-    const eSources = new Set(e.sources.map((s) => s.uri));
-    const others = (sql.exec(`SELECT id FROM entries WHERE id != ? AND status IN ('active', 'stale') AND origin_session != ? AND kind = ?`, id, e.origin.session, e.kind).toArray() as any[])
-      .map((r) => this.get(r.id)!)
-      .filter((o) => !e.parents.includes(o.id) && !o.parents.includes(e.id));
-    // Score every candidate and take the strongest disagreement, not the first one found.
-    let best: { o: Entry; overlap: number; shared: boolean } | null = null;
-    for (const o of others) {
-      const overlap = jaccard(ew, words(`${o.title} ${o.body}`));
-      const shared = o.sources.some((s) => eSources.has(s.uri));
-      const disagree = NEGATION.test(`${e.title} ${e.body}`) !== NEGATION.test(`${o.title} ${o.body}`);
-      const score = overlap + (shared ? 0.1 : 0);
-      if (disagree && (overlap >= 0.25 || (shared && overlap >= 0.15)) && (!best || score > best.overlap + (best.shared ? 0.1 : 0))) best = { o, overlap, shared };
-    }
-    if (best) {
-      const cid = `x-${this.next("conflict")}`;
-      const reason = `${Math.round(best.overlap * 100)}% wording overlap${best.shared ? ", shared source" : ""}, opposite instructions`;
-      sql.exec(`INSERT INTO conflicts VALUES (?, ?, ?, ?, 'open', NULL, NULL, ?)`, cid, best.o.id, e.id, reason, Date.now());
-      this.setStatus([best.o.id, e.id], "contested", "conflict-check", `conflict ${cid}: ${reason}`);
-      return cid;
-    }
-    return null;
+  // Opened by the judge on a write: both entries become contested and wait for review.
+  private openConflict(a: string, b: string, reason: string) {
+    const cid = `x-${this.next("conflict")}`;
+    this.ctx.storage.sql.exec(`INSERT INTO conflicts VALUES (?, ?, ?, ?, 'open', NULL, NULL, ?)`, cid, a, b, reason, Date.now());
+    this.setStatus([a, b], "contested", "conflict-check", `conflict ${cid}: ${reason}`);
+    return cid;
   }
 
   async resolveConflict(cid: string, decision: "keep_a" | "keep_b" | "keep_both" | "retract_both", reviewer: string, note = "") {
@@ -355,6 +462,12 @@ export class Scope extends DurableObject<ScopeEnv> {
         const c = sql.exec(`SELECT * FROM conflicts WHERE status = 'open' AND (a = ? OR b = ?)`, id, id).toArray()[0] as any;
         return c ? { id: c.id, with: c.a === id ? c.b : c.a, reason: c.reason } : null;
       })(),
+      corroborations: (sql.exec(`SELECT * FROM corroborations WHERE entry = ? ORDER BY n`, id).toArray() as any[]).map(
+        (c): Corroboration => ({ agent: c.agent, session: c.session, supervisor: c.supervisor, step: c.step, sources: JSON.parse(c.sources), judge: c.judge, confidence: c.confidence, at: c.at }),
+      ),
+      superseded_by: e.status === "superseded"
+        ? ((sql.exec(`SELECT a FROM relations WHERE b = ? AND action = 'superseded' ORDER BY n DESC LIMIT 1`, id).toArray()[0] as any)?.a ?? null)
+        : null,
     };
   }
 
@@ -436,6 +549,7 @@ export class Scope extends DurableObject<ScopeEnv> {
       receipts: sql.exec(`SELECT entry, session, MIN(step) AS step, MIN(at) AS first_at, COUNT(*) AS times FROM receipts GROUP BY entry, session`).toArray(),
       reviews: sql.exec(`SELECT * FROM reviews ORDER BY at`).toArray(),
       conflicts: sql.exec(`SELECT * FROM conflicts ORDER BY at`).toArray(),
+      relations: sql.exec(`SELECT * FROM relations WHERE action IS NOT NULL ORDER BY n`).toArray(),
     };
   }
 

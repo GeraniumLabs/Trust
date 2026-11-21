@@ -302,6 +302,7 @@ function renderGraph() {
     if (quarantined || paused) { fill = "var(--danger-bg)"; stroke = "var(--danger)"; dash = 'stroke-dasharray="5 4"'; }
     if (n.kind === "entry" && n.data.status === "stale") { fill = "var(--stale-bg)"; stroke = "var(--stale)"; dash = 'stroke-dasharray="5 4"'; }
     if (n.kind === "entry" && n.data.status === "contested") { fill = "var(--contest-bg)"; stroke = "var(--contest)"; dash = 'stroke-dasharray="5 4"'; }
+    if (n.kind === "entry" && n.data.status === "superseded") { fill = "var(--panel)"; stroke = "var(--stale)"; dash = 'stroke-dasharray="2 3"'; }
     if (n.kind === "entry" && n.data.status === "retracted") { fill = "var(--panel)"; stroke = "var(--faint)"; dash = 'stroke-dasharray="2 3"'; }
     if (n.kind === "entry" && n.data.trust === "unverified" && !quarantined) dash = 'stroke-dasharray="2 3"';
     const rx = n.kind === "change" ? 18 : 8;
@@ -352,7 +353,9 @@ async function selectEntry(scope, id) {
   showDetail(`<h4>${esc(e.id)}: ${esc(e.title)}</h4><p class="body">${esc(e.body)}</p>
     <div class="row" style="margin-bottom:10px"><span class="tag ${esc(e.status)}">${esc(e.status)}</span><span class="tag ${esc(e.trust)}">${esc(e.trust)}</span><span class="tag">${esc(e.derivation)}</span><span class="tag">v${e.version}</span><span class="tag ${ver.data.valid ? "valid" : "quarantined"}">${ver.data.valid ? "signature valid" : "signature invalid"}</span></div>
     ${e.conflict ? `<p class="note" style="color:var(--contest)">Contested with ${esc(e.conflict.with)}: ${esc(e.conflict.reason)}</p>` : ""}
+    ${e.superseded_by ? `<p class="note" style="color:var(--stale)">Superseded by ${esc(e.superseded_by)}. Still recalled, ranked last.</p>` : ""}
     <dl class="kv"><dt>Origin</dt><dd>${esc(e.origin.agent)}, ${esc(e.origin.session)}, step ${e.origin.step}</dd>
+    ${e.corroborations?.length ? `<dt>Corroborated by</dt><dd>${e.corroborations.map((c) => `${esc(c.agent)}, ${esc(c.session)}, step ${c.step} <span class="tag">${esc(c.judge)} ${Number(c.confidence).toFixed(2)}</span>`).join("<br>")}</dd>` : ""}
     <dt>Supervisor</dt><dd>${esc(e.origin.supervisor)}</dd><dt>Sources</dt><dd>${srcs}</dd>
     <dt>Builds on</dt><dd>${chain.slice(1).map((c) => `${esc(c.id)} ${esc(c.title)}`).join("<br>") || "nothing"}</dd>
     <dt>Derived</dt><dd>${(imp.data.derived ?? []).map(esc).join(", ") || "nothing yet"}</dd>

@@ -12,5 +12,10 @@
     ]
   },
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Registry", "Scope"] }],
+  // Workers AI: the memory judge uses Clef-Flash through this binding when deployed.
+  // Choose the judge with TRUST_JUDGE (auto | heuristic | workers-ai | systemone); see README.
+  // This binding makes `wrangler dev` open a remote session (needs a Cloudflare login).
+  // `npm run dev:offline` runs without it and falls back to the heuristic judge.
+  "ai": { "binding": "AI" },
   "observability": { "enabled": true }
 }

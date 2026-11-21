@@ -123,7 +123,19 @@ const handler = {
             derivation: (body.derivation ?? "observed") as Derivation,
             origin: { agent: s.agent, session: s.id, supervisor: s.supervisor, step: Number(body.step ?? 0) },
           });
+          if (entry.deduped) await reg.logEvent(s.agent, "remember", scope, "merged", `duplicate of ${entry.id}; added as corroboration (${entry.deduped.judge})`);
           return json(entry);
+        }
+
+        // Judge without storing: { newer: {title, body, sources?}, older: [{...}] }. Used by eval/.
+        case "judge": {
+          if (!body.newer?.title || !Array.isArray(body.older) || !body.older.length) return fail("newer and a non-empty older[] are required", 400);
+          if (body.older.length > 16) return fail("at most 16 older memories per call", 400);
+          return json(await scopeStub("judge-scratch").judgeOnly(body.newer, body.older));
+        }
+
+        case "relations": {
+          return json(await scopeStub(parts[4]).relations());
         }
 
         case "recall": {

@@ -248,4 +248,63 @@ await test("graph endpoint returns every scope", async () => {
   assert.ok(g.graphs.northwind.entries.length >= 5 && g.graphs.contoso.entries.length >= 1 && g.graphs.precedent.entries.length === 1);
 });
 
-console.log(`\n${passed} passed (demo ${demo})`);
+// ---------- judge: dedupe, supersede, trust rule (default heuristic judge) ----------
+// A fresh demo: the one above has a wall on Northwind by now.
+const firstDemo = demo;
+demo = (await api("POST", "/demo")).data.demo;
+const j1 = (await post("/sessions", { scope: "contoso", agent: "claude-code", supervisor: "Casey" })).data;
+const j2 = (await post("/sessions", { scope: "contoso", agent: "codex", supervisor: "Drew" })).data;
+let base;
+
+await test("a duplicate write becomes corroboration on the existing entry", async () => {
+  base = (await remember(j1, "contoso", { title: "Contoso invoices use EUR", body: "Contoso invoices are issued in EUR from the Dublin entity.", sources: [{ uri: "contoso/billing/config.ts", hash: "aa11" }], step: 1 })).data;
+  const dup = (await remember(j2, "contoso", { title: "Contoso invoices use EUR", body: "Contoso invoices are issued in EUR from the Dublin entity.", sources: [{ uri: "contoso/billing/config.ts", hash: "aa11" }, { uri: "contoso/contract.pdf", kind: "doc" }], step: 3 })).data;
+  assert.equal(dup.id, base.id, "no new entry");
+  assert.equal(dup.deduped.into, base.id);
+  assert.equal(dup.corroborations.length, 1);
+  assert.equal(dup.corroborations[0].session, j2.id, "the second agent's origin is kept");
+  assert.equal(dup.sources.length, 2, "the new source joins the entry");
+  assert.equal(dup.version, 2);
+  assert.equal((await get(`/verify/contoso/${base.id}`)).data.valid, true, "re-signed after corroboration");
+  const h = (await get(`/history/contoso/${base.id}`)).data;
+  assert.match(h.at(-1).note, /corroborated by codex/);
+});
+
+await test("a write that adds a figure is kept, not merged", async () => {
+  const r = (await remember(j2, "contoso", { title: "Contoso invoices use EUR", body: "Contoso invoices are issued in EUR from the Dublin entity, net 45.", sources: [{ uri: "contoso/billing/config.ts", hash: "aa11" }], step: 4 })).data;
+  assert.ok(!r.deduped);
+});
+
+await test("a sourced change supersedes the agent's own older memory", async () => {
+  const old = (await remember(j1, "contoso", { title: "Contoso FX rate source", body: "Contoso FX conversions use the ECB daily reference rate.", sources: [{ uri: "contoso/fx.ts", hash: "f1" }], step: 5 })).data;
+  const neu = (await remember(j1, "contoso", { title: "Contoso FX rate source changed", body: "Contoso FX conversions now use the Bloomberg BFIX rate; the ECB daily reference rate was retired.", sources: [{ uri: "contoso/fx.ts", hash: "f2" }], step: 6 })).data;
+  const o = (await get(`/why/contoso/${old.id}`)).data.entry;
+  assert.equal(o.status, "superseded");
+  assert.equal(o.superseded_by, neu.id);
+  const rec = (await post("/recall", { session: j2.id, query: "Contoso FX rate source", step: 7 })).data.results.filter((e) => !e.advisory);
+  assert.equal(rec[0].id, neu.id, "the current fact ranks first");
+});
+
+await test("an unsourced write can't retire a sourced memory; it goes to review", async () => {
+  const sourced = (await remember(j1, "contoso", { title: "Contoso support hours", body: "Contoso's support desk is staffed 8am to 6pm CET on weekdays.", sources: [{ uri: "contoso/sla.pdf", hash: "m1" }], step: 8 })).data;
+  const claim = (await remember(j2, "contoso", { title: "Contoso support hours changed", body: "Contoso's support desk is now staffed 8am to 6pm CET on weekdays and Saturdays.", step: 9 })).data;
+  const a = (await get(`/why/contoso/${sourced.id}`)).data.entry;
+  assert.notEqual(a.status, "superseded");
+  assert.equal(a.status, "contested");
+  assert.equal(claim.conflict?.with, sourced.id);
+});
+
+await test("every judgment is logged with the judge that made it", async () => {
+  const rel = (await get("/relations/contoso")).data;
+  assert.ok(rel.some((r) => r.action === "merged" && r.b === base.id));
+  assert.ok(rel.some((r) => r.action === "superseded"));
+  assert.ok(rel.every((r) => r.judge));
+});
+
+await test("the judge endpoint scores a pair without storing it", async () => {
+  const out = (await post("/judge", { newer: { title: "Logs kept 90 days", body: "Application logs are retained for 90 days." }, older: [{ title: "Logs kept 30 days", body: "Application logs are retained for 30 days." }] })).data;
+  assert.equal(out.length, 1);
+  assert.equal(out[0].relation, "contradicts");
+});
+
+console.log(`\n${passed} passed (demos ${firstDemo}, ${demo})`);

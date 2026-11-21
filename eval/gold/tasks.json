@@ -1,0 +1,534 @@
+{
+  "about": "Scenario tasks: agents write memories into one scope through the real API, then the end state is checked. Agents a1 and a2 are separate sessions in the Northwind scope. Keys name memories inside a task; 'merged' means the write was folded into an existing entry as corroboration. Each step's 'gold' gives the correct relation of that write to earlier memories; eval/oracle.mjs answers from these labels to check the write policy with a perfect judge.",
+  "tasks": [
+    {
+      "id": "T01",
+      "name": "Second agent corroborates a fact",
+      "skill": "dedupe",
+      "steps": [
+        {
+          "as": "a1",
+          "key": "m1",
+          "title": "Invoice totals use money.round()",
+          "body": "Northwind invoice totals must be rounded with money.round() from billing/round.ts.",
+          "sources": [
+            {
+              "uri": "northwind/billing/round.ts",
+              "hash": "a41c9e"
+            }
+          ]
+        },
+        {
+          "as": "a2",
+          "key": "m2",
+          "title": "Round invoice totals with money.round()",
+          "body": "Use money.round() from billing/round.ts when rounding Northwind invoice totals.",
+          "sources": [
+            {
+              "uri": "northwind/billing/README.md",
+              "hash": "0c11d2"
+            }
+          ],
+          "gold": {
+            "m1": "duplicate"
+          }
+        }
+      ],
+      "expect": {
+        "entries": 1,
+        "merged": {
+          "m2": "m1"
+        },
+        "status": {
+          "m1": "active"
+        },
+        "sources": {
+          "m1": 2
+        },
+        "corroborations": {
+          "m1": 1
+        }
+      }
+    },
+    {
+      "id": "T02",
+      "name": "Paraphrased duplicate with little word overlap",
+      "skill": "dedupe",
+      "steps": [
+        {
+          "as": "a1",
+          "key": "m1",
+          "title": "CI needs Node 22",
+          "body": "The CI pipeline only passes on Node 22; older Node versions fail the build.",
+          "sources": [
+            {
+              "uri": ".github/workflows/ci.yml",
+              "hash": "9d0e"
+            }
+          ]
+        },
+        {
+          "as": "a2",
+          "key": "m2",
+          "title": "Build requires Node v22",
+          "body": "Builds break unless the runner is on Node 22.",
+          "sources": [
+            {
+              "uri": ".github/workflows/ci.yml",
+              "hash": "9d0e"
+            }
+          ],
+          "gold": {
+            "m1": "duplicate"
+          }
+        }
+      ],
+      "expect": {
+        "entries": 1,
+        "merged": {
+          "m2": "m1"
+        },
+        "corroborations": {
+          "m1": 1
+        }
+      }
+    },
+    {
+      "id": "T03",
+      "name": "Two agents disagree",
+      "skill": "conflict",
+      "steps": [
+        {
+          "as": "a1",
+          "key": "m1",
+          "title": "Invoice totals use money.round()",
+          "body": "Northwind invoice totals must be rounded with money.round() from billing/round.ts.",
+          "sources": [
+            {
+              "uri": "northwind/billing/round.ts",
+              "hash": "a41c9e"
+            }
+          ]
+        },
+        {
+          "as": "a2",
+          "key": "m2",
+          "title": "Don't use money.round() for invoice totals",
+          "body": "For Northwind invoice totals, do not call money.round(); it truncates. Use Math.round.",
+          "sources": [
+            {
+              "uri": "northwind/billing/round.ts",
+              "hash": "a41c9e"
+            }
+          ],
+          "gold": {
+            "m1": "contradicts"
+          }
+        }
+      ],
+      "expect": {
+        "entries": 2,
+        "status": {
+          "m1": "contested",
+          "m2": "contested"
+        },
+        "openConflicts": 1
+      }
+    },
+    {
+      "id": "T04",
+      "name": "A sourced change supersedes the old fact",
+      "skill": "supersede",
+      "steps": [
+        {
+          "as": "a1",
+          "key": "m1",
+          "title": "CI needs Node 22",
+          "body": "The CI pipeline only passes on Node 22; older Node versions fail the build.",
+          "sources": [
+            {
+              "uri": ".github/workflows/ci.yml",
+              "hash": "9d0e"
+            }
+          ]
+        },
+        {
+          "as": "a2",
+          "key": "m2",
+          "title": "CI moved to Node 24",
+          "body": "CI now runs on Node 24; the Node 22 runners were retired last week.",
+          "sources": [
+            {
+              "uri": ".github/workflows/ci.yml",
+              "hash": "b71f"
+            }
+          ],
+          "gold": {
+            "m1": "supersedes"
+          }
+        }
+      ],
+      "expect": {
+        "entries": 2,
+        "status": {
+          "m1": "superseded",
+          "m2": "active"
+        },
+        "recall": [
+          {
+            "as": "a1",
+            "query": "which Node version does CI need",
+            "top": "m2"
+          }
+        ]
+      }
+    },
+    {
+      "id": "T05",
+      "name": "An unsourced claim cannot retire a sourced memory",
+      "skill": "supersede",
+      "steps": [
+        {
+          "as": "a1",
+          "key": "m1",
+          "title": "Response brief due March 14",
+          "body": "The response brief in Northwind v. Halcyon is due March 14.",
+          "sources": [
+            {
+              "uri": "northwind/docket/order-12.pdf",
+              "hash": "e2a0"
+            }
+          ]
+        },
+        {
+          "as": "a2",
+          "key": "m2",
+          "title": "Brief deadline moved",
+          "body": "The Northwind v. Halcyon response brief deadline has now moved to March 28.",
+          "gold": {
+            "m1": "supersedes"
+          }
+        }
+      ],
+      "expect": {
+        "entries": 2,
+        "status": {
+          "m1": "contested",
+          "m2": "contested"
+        },
+        "openConflicts": 1,
+        "notStatus": {
+          "m1": "superseded"
+        }
+      }
+    },
+    {
+      "id": "T06",
+      "name": "A refinement keeps both memories",
+      "skill": "refine",
+      "steps": [
+        {
+          "as": "a1",
+          "key": "m1",
+          "title": "Mergery API rate limit is 600/min",
+          "body": "The Mergery API allows 600 requests per minute per token.",
+          "sources": [
+            {
+              "uri": "docs/api/limits.md",
+              "hash": "11aa"
+            }
+          ]
+        },
+        {
+          "as": "a2",
+          "key": "m2",
+          "title": "Mergery rate limit returns Retry-After",
+          "body": "When a token exceeds 600 requests per minute, the Mergery API returns 429 with a Retry-After header.",
+          "sources": [
+            {
+              "uri": "docs/api/limits.md",
+              "hash": "11aa"
+            }
+          ],
+          "gold": {
+            "m1": "refines"
+          }
+        }
+      ],
+      "expect": {
+        "entries": 2,
+        "status": {
+          "m1": "active",
+          "m2": "active"
+        },
+        "openConflicts": 0
+      }
+    },
+    {
+      "id": "T07",
+      "name": "Look-alike but unrelated facts stay separate",
+      "skill": "unrelated",
+      "steps": [
+        {
+          "as": "a1",
+          "key": "m1",
+          "title": "Mergery API rate limit is 600/min",
+          "body": "The Mergery API allows 600 requests per minute per token.",
+          "sources": [
+            {
+              "uri": "docs/api/limits.md",
+              "hash": "11aa"
+            }
+          ]
+        },
+        {
+          "as": "a2",
+          "key": "m2",
+          "title": "Mergery API tokens expire after 90 days",
+          "body": "Mergery API tokens expire 90 days after creation.",
+          "sources": [
+            {
+              "uri": "docs/api/tokens.md",
+              "hash": "22bb"
+            }
+          ],
+          "gold": {
+            "m1": "unrelated"
+          }
+        }
+      ],
+      "expect": {
+        "entries": 2,
+        "status": {
+          "m1": "active",
+          "m2": "active"
+        },
+        "openConflicts": 0
+      }
+    },
+    {
+      "id": "T08",
+      "name": "An agent updates its own memory",
+      "skill": "supersede",
+      "steps": [
+        {
+          "as": "a1",
+          "key": "m1",
+          "title": "Logs are retained 30 days",
+          "body": "Application logs are kept for 30 days, then deleted.",
+          "sources": [
+            {
+              "uri": "infra/logging.tf",
+              "hash": "aa01"
+            }
+          ]
+        },
+        {
+          "as": "a1",
+          "key": "m2",
+          "title": "Log retention cut to 14 days",
+          "body": "To reduce cost, application log retention was reduced to 14 days this month.",
+          "sources": [
+            {
+              "uri": "infra/logging.tf",
+              "hash": "bb02"
+            }
+          ],
+          "gold": {
+            "m1": "supersedes"
+          }
+        }
+      ],
+      "expect": {
+        "entries": 2,
+        "status": {
+          "m1": "superseded",
+          "m2": "active"
+        }
+      }
+    },
+    {
+      "id": "T09",
+      "name": "An exception is not a contradiction",
+      "skill": "refine",
+      "steps": [
+        {
+          "as": "a1",
+          "key": "m1",
+          "title": "Don't import lodash",
+          "body": "Avoid importing lodash; use native array methods.",
+          "sources": [
+            {
+              "uri": "CONTRIBUTING.md",
+              "hash": "c0de"
+            }
+          ]
+        },
+        {
+          "as": "a2",
+          "key": "m2",
+          "title": "Native methods, but not toSorted() yet",
+          "body": "Use native array methods instead of lodash, but don't use toSorted() until we drop Safari 15.",
+          "sources": [
+            {
+              "uri": "CONTRIBUTING.md",
+              "hash": "c0de"
+            }
+          ],
+          "gold": {
+            "m1": "refines"
+          }
+        }
+      ],
+      "expect": {
+        "entries": 2,
+        "status": {
+          "m1": "active",
+          "m2": "active"
+        },
+        "openConflicts": 0
+      }
+    },
+    {
+      "id": "T10",
+      "name": "A numeric contradiction with no negation",
+      "skill": "conflict",
+      "steps": [
+        {
+          "as": "a1",
+          "key": "m1",
+          "title": "Logs are retained 30 days",
+          "body": "Application logs are kept for 30 days, then deleted.",
+          "sources": [
+            {
+              "uri": "infra/logging.tf",
+              "hash": "aa01"
+            }
+          ]
+        },
+        {
+          "as": "a2",
+          "key": "m2",
+          "title": "Logs are retained 90 days",
+          "body": "Application logs are retained for 90 days.",
+          "sources": [
+            {
+              "uri": "infra/logging.tf",
+              "hash": "aa01"
+            }
+          ],
+          "gold": {
+            "m1": "contradicts"
+          }
+        }
+      ],
+      "expect": {
+        "entries": 2,
+        "status": {
+          "m1": "contested",
+          "m2": "contested"
+        },
+        "openConflicts": 1
+      }
+    },
+    {
+      "id": "T11",
+      "name": "Three agents: corroboration, then a contradiction",
+      "skill": "mixed",
+      "steps": [
+        {
+          "as": "a1",
+          "key": "m1",
+          "title": "Northwind wants redlines in Word",
+          "body": "Northwind's general counsel wants all redlines delivered as tracked changes in Word, not PDF.",
+          "sources": [
+            {
+              "uri": "email://northwind-gc/2026-10-02"
+            }
+          ]
+        },
+        {
+          "as": "a2",
+          "key": "m2",
+          "title": "Send Northwind redlines as tracked-changes Word files",
+          "body": "Deliver redlines to Northwind's GC in Word with tracked changes rather than as PDFs.",
+          "sources": [
+            {
+              "uri": "email://northwind-gc/2026-10-02"
+            }
+          ],
+          "gold": {
+            "m1": "duplicate"
+          }
+        },
+        {
+          "as": "a3",
+          "key": "m3",
+          "title": "Northwind wants PDF redlines only",
+          "body": "Northwind's GC will only accept redlines as PDFs; never send Word files.",
+          "gold": {
+            "m1": "contradicts",
+            "m2": "contradicts"
+          }
+        }
+      ],
+      "expect": {
+        "entries": 2,
+        "merged": {
+          "m2": "m1"
+        },
+        "status": {
+          "m1": "contested",
+          "m3": "contested"
+        },
+        "openConflicts": 1
+      }
+    },
+    {
+      "id": "T12",
+      "name": "Recall prefers the current fact after a change",
+      "skill": "supersede",
+      "steps": [
+        {
+          "as": "a1",
+          "key": "m1",
+          "title": "Opposing counsel is Baker LLP",
+          "body": "Opposing counsel in the Northwind dispute is Baker LLP.",
+          "sources": [
+            {
+              "uri": "northwind/pleadings/answer.pdf",
+              "hash": "f001"
+            }
+          ]
+        },
+        {
+          "as": "a2",
+          "key": "m2",
+          "title": "Halcyon substituted counsel",
+          "body": "Halcyon substituted counsel; Mercer & Lowe LLP filed a notice of appearance yesterday, replacing Baker LLP.",
+          "sources": [
+            {
+              "uri": "northwind/docket/notice-31.pdf",
+              "hash": "f002"
+            }
+          ],
+          "gold": {
+            "m1": "supersedes"
+          }
+        }
+      ],
+      "expect": {
+        "status": {
+          "m1": "superseded"
+        },
+        "recall": [
+          {
+            "as": "a1",
+            "query": "who is opposing counsel in the Northwind dispute",
+            "top": "m2"
+          }
+        ]
+      }
+    }
+  ]
+}

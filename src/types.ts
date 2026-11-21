@@ -1,7 +1,7 @@
 // Shared types for Trust v1.
 
 export type TrustTier = "unverified" | "sourced" | "reviewed";
-export type Status = "active" | "contested" | "stale" | "quarantined" | "retracted";
+export type Status = "active" | "contested" | "stale" | "superseded" | "quarantined" | "retracted";
 export type Derivation = "observed" | "inferred" | "stated" | "imported" | "promoted";
 
 export interface SourceRef {
@@ -43,6 +43,21 @@ export interface Entry {
   parents: string[];
   signature?: string;
   conflict?: { id: string; with: string; reason: string } | null;
+  corroborations?: Corroboration[];
+  superseded_by?: string | null;
+  // Set on the value returned by remember() when the write was merged into an existing entry.
+  deduped?: { into: string; judge: string; confidence: number } | null;
+}
+
+export interface Corroboration {
+  agent: string;
+  session: string;
+  supervisor: string;
+  step: number;
+  sources: SourceRef[];
+  judge: string;
+  confidence: number;
+  at: number;
 }
 
 export interface SessionInfo {
