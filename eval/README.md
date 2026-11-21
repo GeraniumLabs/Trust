@@ -67,9 +67,12 @@ A full run is 100 judge calls plus about 30 writes. On Clef-Flash that's roughly
 | Judge | Pair accuracy | Macro-F1 | Harmful merges | Missed conflicts | Tasks |
 | --- | --- | --- | --- | --- | --- |
 | Oracle (gold labels) | 100% | 100% | 0 | 0 | 12/12 |
+| Jev (`jev-latest`, Nov 21) | 98% | 98% | 0 | 0 | 12/12 |
 | Heuristic | 58% | 56.5% | 2 | 12 of 20 | 8/12 |
 | Clef-Flash | not run yet | | | | |
 | Kev | not run yet | | | | |
+
+Jev's two misses were both labeled `refines` when gold said otherwise (one duplicate, one unrelated), and both in the preferences domain. Refines keeps both memories, so neither error changed anything stored. Median judge latency was 64 ms from a laptop to TypeSafe's API. A score this close to the oracle mostly says the set is too easy for a strong model: the next step is harder pairs and pairs from real traffic, not more tuning.
 
 The oracle passing everything shows that the write policy, the System One adapter and the task checks are consistent. The judge is the only thing left to measure.
 
