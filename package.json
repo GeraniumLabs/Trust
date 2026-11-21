@@ -12,7 +12,8 @@
     "test": "node test/e2e.mjs",
     "test:unit": "esbuild src/judge.ts --format=esm --outfile=.build/judge.mjs --log-level=warning && node test/judge.test.mjs",
     "eval": "node eval/score.mjs",
-    "dev:offline": "node scripts/offline-config.mjs && wrangler dev -c .wrangler.offline.jsonc"
+    "dev:offline": "node scripts/offline-config.mjs && wrangler dev -c .wrangler.offline.jsonc",
+    "ci": "npm run typecheck && npm run test:unit && bash scripts/ci.sh"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20261119.1",

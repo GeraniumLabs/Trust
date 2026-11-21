@@ -7,6 +7,12 @@
 //   node eval/score.mjs --label clef-flash   # name used for eval/results/<label>.json
 //   node eval/score.mjs --set core | hard    # one pair set only (default: both)
 //
+// Gates, for CI (exit code 1 when a gate fails):
+//   --require-perfect     every pair right and every task passing (the oracle judge)
+//   --max-costly N        harmful merges + wrongful supersedes, across both sets, at most N
+//   --min-tasks N         at least N scenario tasks pass
+//   --no-save             don't write eval/results/<label>.json
+//
 // It scores whichever judge the Worker is configured with (TRUST_JUDGE), so the numbers
 // reflect exactly what production would do: heuristic, Clef/Clef-Flash on Workers AI,
 // or any /v1/systemone endpoint such as a local Kev.
@@ -302,8 +308,29 @@ if (!flag("--pairs-only")) {
   report.tasks = await scoreTasks();
   printTasks(report.tasks);
 }
-const label = opt("--label") ?? (BARS?.judge ?? "run").replace(/[^a-z0-9.-]+/gi, "-");
-mkdirSync(join(here, "results"), { recursive: true });
-const file = join(here, "results", `${label}.json`);
-writeFileSync(file, JSON.stringify(report, null, 2));
-console.log(`\nWrote ${file}`);
+if (!flag("--no-save")) {
+  const label = opt("--label") ?? (BARS?.judge ?? "run").replace(/[^a-z0-9.-]+/gi, "-");
+  mkdirSync(join(here, "results"), { recursive: true });
+  const file = join(here, "results", `${label}.json`);
+  writeFileSync(file, JSON.stringify(report, null, 2));
+  console.log(`\nWrote ${file}`);
+}
+
+// ---------- gates ----------
+const failures = [];
+const pairSets = Object.entries(report).filter(([k]) => k === "pairs" || k.startsWith("pairs_")).map(([, v]) => v);
+if (flag("--require-perfect")) {
+  for (const p of pairSets) if (p.summary.accuracy < 1) failures.push(`pairs: ${(100 * p.summary.accuracy).toFixed(1)}% correct, expected 100%`);
+  if (report.tasks && report.tasks.summary.passed < report.tasks.summary.n) failures.push(`tasks: ${report.tasks.summary.passed}/${report.tasks.summary.n} passed, expected all`);
+}
+if (opt("--max-costly") !== undefined) {
+  const costly = pairSets.flatMap((p) => [...p.summary.harmfulMerges, ...p.summary.wrongfulSupersedes]);
+  if (costly.length > Number(opt("--max-costly"))) failures.push(`costly mistakes: ${costly.length} (${costly.join(" ")}), allowed ${opt("--max-costly")}`);
+}
+if (opt("--min-tasks") !== undefined && report.tasks && report.tasks.summary.passed < Number(opt("--min-tasks"))) {
+  failures.push(`tasks: ${report.tasks.summary.passed} passed, need at least ${opt("--min-tasks")}`);
+}
+if (failures.length) {
+  console.log(`\nGATE FAILED\n  ${failures.join("\n  ")}`);
+  process.exit(1);
+}
