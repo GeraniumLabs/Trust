@@ -6,17 +6,27 @@ import assert from "node:assert/strict";
 
 const BASE = process.env.BASE_URL ?? "http://localhost:8787";
 let demo;
+let admin; // this space's admin token
+const tokens = {}; // session id -> agent token
 
-async function api(method, path, body) {
+// Agent actions carry the acting session's token; everything else carries the admin token.
+const AGENT_ACTIONS = new Set(["/remember", "/recall", "/relate", "/retract"]);
+const tokenFor = (method, p, body) => (method === "POST" && AGENT_ACTIONS.has(p) ? tokens[body?.session] : admin);
+
+async function api(method, path, body, token) {
   const res = await fetch(`${BASE}/api${path}`, {
     method,
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", ...(token ? { authorization: `Bearer ${token}` } : {}) },
     body: body ? JSON.stringify(body) : undefined,
   });
   return { status: res.status, data: await res.json() };
 }
-const post = (p, b) => api("POST", `/demo/${demo}${p}`, b);
-const get = (p) => api("GET", `/demo/${demo}${p}`);
+const post = async (p, b) => {
+  const r = await api("POST", `/demo/${demo}${p}`, b, tokenFor("POST", p, b));
+  if (p === "/sessions" && r.data?.token) tokens[r.data.id] = r.data.token;
+  return r;
+};
+const get = (p) => api("GET", `/demo/${demo}${p}`, undefined, admin);
 
 let passed = 0;
 async function test(name, fn) {
@@ -27,7 +37,9 @@ async function test(name, fn) {
 
 const created = await api("POST", "/demo");
 demo = created.data.demo;
+admin = created.data.adminToken;
 assert.ok(demo, "demo created");
+assert.match(admin, /^trust_adm_/, "the creator gets an admin token");
 
 const s1 = (await post("/sessions", { scope: "northwind", agent: "claude-code", supervisor: "Avery" })).data;
 const s2 = (await post("/sessions", { scope: "contoso", agent: "codex", supervisor: "Blake" })).data;
@@ -215,7 +227,7 @@ await test("export produces an OKF-style bundle", async () => {
 });
 
 await test("agents use the same memory over MCP, with the same rules", async () => {
-  const mcp = async (method, params, id = 1) => (await fetch(`${BASE}/mcp/${demo}/${s2.id}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id, method, params }) })).json();
+  const mcp = async (method, params, id = 1) => (await fetch(`${BASE}/mcp/${demo}`, { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${tokens[s2.id]}` }, body: JSON.stringify({ jsonrpc: "2.0", id, method, params }) })).json();
   const init = await mcp("initialize", { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "e2e", version: "1" } });
   assert.equal(init.result.serverInfo.name, "trust");
   const tools = await mcp("tools/list", {});
@@ -248,10 +260,63 @@ await test("graph endpoint returns every scope", async () => {
   assert.ok(g.graphs.northwind.entries.length >= 5 && g.graphs.contoso.entries.length >= 1 && g.graphs.precedent.entries.length === 1);
 });
 
+// ---------- identity: tokens decide who is calling ----------
+await test("no token, the wrong kind of token, or a mismatched session is refused", async () => {
+  const body = { session: s1.id, scope: "northwind", title: "x", body: "y" };
+  assert.equal((await api("POST", `/demo/${demo}/remember`, body)).status, 401, "no token");
+  assert.equal((await api("POST", `/demo/${demo}/remember`, body, admin)).status, 403, "admin token can't act as an agent");
+  assert.equal((await api("POST", `/demo/${demo}/remember`, body, tokens[s2.id])).status, 403, "s2's token can't claim s1");
+  assert.equal((await api("POST", `/demo/${demo}/remember`, body, "trust_agt_made-up")).status, 401, "made-up token");
+});
+
+await test("agents can't do admin actions: start sessions, roll back, see the whole graph", async () => {
+  const t = tokens[s2.id];
+  assert.equal((await api("POST", `/demo/${demo}/sessions`, { scope: "contoso", agent: "me", supervisor: "me" }, t)).status, 403);
+  assert.equal((await api("POST", `/demo/${demo}/rollback`, { scope: "contoso", session: s2.id }, t)).status, 403);
+  assert.equal((await api("GET", `/demo/${demo}/graph`, undefined, t)).status, 403);
+  assert.equal((await api("POST", `/demo/${demo}/walls`, { supervisor: "Blake", scope: "contoso" }, t)).status, 403);
+});
+
+await test("an agent reads its own scope's provenance, not another matter's", async () => {
+  const t = tokens[s2.id];
+  const mine = (await post("/remember", { session: s2.id, scope: "contoso", title: "Contoso SSO uses Okta", body: "Contoso staff sign in through Okta SSO.", sources: [{ uri: "contoso/sso.md", hash: "o1" }] })).data;
+  assert.equal((await api("GET", `/demo/${demo}/why/contoso/${mine.id}`, undefined, t)).status, 200);
+  assert.equal((await api("GET", `/demo/${demo}/why/northwind/${e1.id}`, undefined, t)).status, 403);
+  assert.equal((await get(`/why/northwind/${e1.id}`)).status, 200, "the admin can");
+});
+
+await test("tokens are never stored or shown in clear", async () => {
+  const g = JSON.stringify((await get("/graph")).data);
+  assert.ok(!g.includes("trust_agt_") && !g.includes("trust_adm_"));
+});
+
+await test("another space's admin token is useless here", async () => {
+  const other = (await api("POST", "/demo")).data.adminToken;
+  assert.equal((await api("GET", `/demo/${demo}/graph`, undefined, other)).status, 401);
+});
+
+await test("ending a session revokes its token, over HTTP and MCP", async () => {
+  const s = (await post("/sessions", { scope: "contoso", agent: "short-lived", supervisor: "Blake" })).data;
+  const t = tokens[s.id];
+  assert.equal((await post("/remember", { session: s.id, scope: "contoso", title: "Temp note", body: "Contoso staging resets nightly.", sources: [{ uri: "contoso/staging.md" }] })).status, 200);
+  assert.equal((await api("POST", `/demo/${demo}/sessions/${s.id}/end`, {}, t)).data.status, "ended", "an agent can end its own session");
+  assert.equal((await post("/remember", { session: s.id, scope: "contoso", title: "After end", body: "Should be refused." })).status, 401);
+  const r = await (await fetch(`${BASE}/mcp/${demo}`, { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${t}` }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "memory_recall", arguments: { query: "staging" } } }) })).json();
+  assert.match(r.error.message, /revoked/);
+});
+
+await test("MCP refuses session URLs and the admin token", async () => {
+  const call = async (path, token) => (await fetch(`${BASE}${path}`, { method: "POST", headers: { "content-type": "application/json", ...(token ? { authorization: `Bearer ${token}` } : {}) }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "memory_recall", arguments: { query: "x" } } }) })).json();
+  assert.match((await call(`/mcp/${demo}/${s2.id}`)).error.message, /no longer accepted/);
+  assert.match((await call(`/mcp/${demo}`, admin)).error.message, /session token/);
+});
+
 // ---------- judge: dedupe, supersede, trust rule (default heuristic judge) ----------
 // A fresh demo: the one above has a wall on Northwind by now.
 const firstDemo = demo;
-demo = (await api("POST", "/demo")).data.demo;
+const fresh = (await api("POST", "/demo")).data;
+demo = fresh.demo;
+admin = fresh.adminToken;
 const j1 = (await post("/sessions", { scope: "contoso", agent: "claude-code", supervisor: "Casey" })).data;
 const j2 = (await post("/sessions", { scope: "contoso", agent: "codex", supervisor: "Drew" })).data;
 let base;

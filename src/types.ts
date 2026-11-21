@@ -85,6 +85,6 @@ export interface SessionInfo {
   scope: string;
   agent: string;
   supervisor: string;
-  status: "active" | "paused";
+  status: "active" | "paused" | "ended";
   started_at: number;
 }

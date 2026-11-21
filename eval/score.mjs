@@ -28,10 +28,23 @@ let BARS = null;
 const barFor = (j) => (j.judge === "heuristic" ? BARS.fallbackThresholds : BARS.thresholds)[j.relation] ?? 0;
 const ACTION = { duplicate: "merge", contradicts: "conflict", supersedes: "supersede", refines: "keep", unrelated: "keep" };
 
+// Space id -> admin token, and session id -> agent token.
+const ADMIN = {};
+const TOKENS = {};
+const AGENT_ACTIONS = /\/(remember|recall|relate|retract)$/;
+function tokenFor(method, path, body) {
+  const space = path.split("/")[2];
+  if (method === "POST" && AGENT_ACTIONS.test(path)) return TOKENS[body?.session];
+  return ADMIN[space];
+}
+
 async function api(method, path, body) {
-  const res = await fetch(`${BASE}/api${path}`, { method, headers: { "content-type": "application/json" }, body: body ? JSON.stringify(body) : undefined });
+  const token = tokenFor(method, path, body);
+  const res = await fetch(`${BASE}/api${path}`, { method, headers: { "content-type": "application/json", ...(token ? { authorization: `Bearer ${token}` } : {}) }, body: body ? JSON.stringify(body) : undefined });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(`${method} ${path}: ${res.status} ${data.error ?? ""}`);
+  if (data.adminToken && data.demo) ADMIN[data.demo] = data.adminToken;
+  if (data.token && data.id) TOKENS[data.id] = data.token;
   return data;
 }
 const newDemo = async () => (await api("POST", "/demo")).demo;

@@ -11,6 +11,7 @@ interface Env {
   SCOPE: DurableObjectNamespace;
   REGISTRY: DurableObjectNamespace;
   ASSETS: Fetcher;
+  TRUST_BOOTSTRAP_TOKEN?: string; // when set, only its holder can create spaces
 }
 
 const DEMO_SCOPES = [
@@ -68,6 +69,17 @@ function influenced(recalledBy: any[], changes: any[]) {
   return changes.filter((c) => first.has(c.session) && Number(c.at) >= first.get(c.session)!);
 }
 
+const bearer = (req: Request) => req.headers.get("authorization")?.match(/^Bearer\s+(\S+)$/i)?.[1] ?? null;
+
+// Constant-time comparison of two secrets (via their hashes, so lengths don't leak either).
+async function sameSecret(a: string | null, b: string) {
+  if (!a) return false;
+  const [x, y] = await Promise.all([a, b].map(async (v) => new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(v)))));
+  let diff = 0;
+  for (let i = 0; i < x.length; i++) diff |= x[i] ^ y[i];
+  return diff === 0;
+}
+
 const handler = {
   async fetch(req: Request, env: Env): Promise<Response> {
     const url = new URL(req.url);
@@ -78,12 +90,14 @@ const handler = {
     const body: any = req.method === "POST" ? await req.json().catch(() => ({})) : {};
 
     try {
-      // POST /api/demo -> new throwaway demo
+      // POST /api/demo -> a new space. Open on the public demo; when TRUST_BOOTSTRAP_TOKEN is set,
+      // only its holder can create spaces. The response carries the admin token, once.
       if (parts[1] === "demo" && parts.length === 2 && req.method === "POST") {
+        if (env.TRUST_BOOTSTRAP_TOKEN && !(await sameSecret(bearer(req), env.TRUST_BOOTSTRAP_TOKEN))) return fail("Creating a space needs the bootstrap token.", 401);
         const id = crypto.randomUUID().slice(0, 8);
         const reg = env.REGISTRY.get(env.REGISTRY.idFromName(id)) as unknown as Registry;
-        await reg.setup(DEMO_SCOPES.map(({ prefix, ...s }) => s));
-        return json({ demo: id, scopes: DEMO_SCOPES });
+        const { adminToken } = await reg.setup(DEMO_SCOPES.map(({ prefix, ...s }) => s));
+        return json({ demo: id, scopes: DEMO_SCOPES, adminToken });
       }
       if (parts[1] !== "demo" || !parts[2]) return fail("Not found", 404);
 
@@ -95,19 +109,45 @@ const handler = {
       await reg.countOp();
       const scopeStub = (scope: string) => env.SCOPE.get(env.SCOPE.idFromName(`${demo}:${scope}`)) as unknown as Scope;
 
+      // Identity comes from the bearer token only. Agents get a token when an admin starts their
+      // session; the admin token comes back when the space is created. A session id in the body
+      // is accepted only as a cross-check against the token.
+      const caller = await reg.authenticate(bearer(req));
+      const isAdmin = caller?.kind === "admin";
+      const agent = caller?.kind === "agent" ? caller.session : null;
+      const needAdmin = () => (isAdmin ? null : fail("This needs the admin token for this space.", caller ? 403 : 401));
+      const needAgent = () => {
+        if (!agent) return fail(isAdmin ? "This is an agent action: use the agent's session token." : "This needs an agent token (from POST sessions).", isAdmin ? 403 : 401);
+        if (body.session && body.session !== agent.id) return fail(`This token is for session ${agent.id}, not ${body.session}.`, 403);
+        return null;
+      };
+      // Reads of one scope: the admin may read any; an agent only what authorize() allows.
+      const canRead = async (scope: string) => {
+        if (isAdmin) return null;
+        if (!agent) return fail("This needs a token.", 401);
+        const a = await reg.authorize(agent.id, scope, "read");
+        return a.ok ? null : fail(a.reason!, 403);
+      };
+
       switch (action) {
         case "sessions": {
-          const s = await reg.startSession(body.scope, body.agent, body.supervisor);
-          return json(s);
+          // POST sessions/:id/end — the admin, or the agent ending its own session.
+          if (parts[4] && parts[5] === "end") {
+            if (!isAdmin && agent?.id !== parts[4]) return fail("Only the admin or the session itself can end it.", caller ? 403 : 401);
+            return json(await reg.endSession(parts[4], isAdmin ? "admin" : agent!.agent));
+          }
+          const denied = needAdmin();
+          if (denied) return denied;
+          return json(await reg.startSession(body.scope, body.agent, body.supervisor));
         }
 
         case "remember": {
-          const auth = await reg.authorize(body.session, body.scope ?? "", "write");
-          if (!auth.session) return fail(auth.reason ?? "unknown session", 403);
-          const scope = body.scope ?? auth.session.scope;
-          const check = scope === auth.session.scope ? auth : await reg.authorize(body.session, scope, "write");
+          const denied = needAgent();
+          if (denied) return denied;
+          const s = agent!;
+          const scope = body.scope ?? s.scope;
+          const check = await reg.authorize(s.id, scope, "write");
           if (!check.ok) return fail(check.reason!, 403);
-          const s = auth.session;
           const secret = findSecret(body.title ?? "", body.body ?? "", JSON.stringify(body.sources ?? []));
           if (secret) {
             await reg.logEvent(s.agent, "remember", scope, "rejected", `looked like it contained a ${secret}`);
@@ -129,41 +169,47 @@ const handler = {
 
         // Judge without storing: { newer: {title, body, sources?}, older: [{...}] }. Used by eval/.
         case "judge": {
+          { const denied = needAdmin(); if (denied) return denied; }
           if (!body.newer?.title || !Array.isArray(body.older) || !body.older.length) return fail("newer and a non-empty older[] are required", 400);
           if (body.older.length > 16) return fail("at most 16 older memories per call", 400);
           return json(await scopeStub("judge-scratch").judgeOnly(body.newer, body.older));
         }
 
         case "judge-config": {
+          { const denied = needAdmin(); if (denied) return denied; }
           return json(await scopeStub("judge-scratch").judgeConfig());
         }
 
         case "relations": {
+          { const denied = needAdmin(); if (denied) return denied; }
           return json(await scopeStub(parts[4]).relations());
         }
 
         case "recall": {
-          const first = await reg.authorize(body.session, body.scope ?? "precedent", "read");
-          if (!first.session) return fail(first.reason ?? "unknown session", 403);
-          const target = body.scope ?? first.session.scope;
-          const auth = await reg.authorize(body.session, target, "read");
+          const denied = needAgent();
+          if (denied) return denied;
+          const sid = agent!.id;
+          const target = body.scope ?? agent!.scope;
+          const auth = await reg.authorize(sid, target, "read");
           if (!auth.ok) return fail(auth.reason!, 403);
           const step = Number(body.step ?? 0);
-          const own = await scopeStub(target).recall(body.query ?? "", body.session, step, 5);
+          const own = await scopeStub(target).recall(body.query ?? "", sid, step, 5);
           let advisory: any[] = [];
           if (target !== "precedent") {
-            advisory = (await scopeStub("precedent").recall(body.query ?? "", body.session, step, 3)).map((e) => ({ ...e, advisory: true }));
+            advisory = (await scopeStub("precedent").recall(body.query ?? "", sid, step, 3)).map((e) => ({ ...e, advisory: true }));
           }
           return json({ scope: target, results: [...own, ...advisory] });
         }
 
         case "why": {
           const [scope, id] = [parts[4], parts[5]];
+          { const denied = await canRead(scope); if (denied) return denied; }
           return json(await scopeStub(scope).why(id));
         }
 
         case "impact": {
           const [scope, id] = [parts[4], parts[5]];
+          { const denied = await canRead(scope); if (denied) return denied; }
           const impact = await scopeStub(scope).impact(id);
           const sessions = [...new Set(impact.recalledBy.map((r: any) => r.session as string))];
           return json({ ...impact, changes: influenced(impact.recalledBy, await reg.changesFor(sessions)) });
@@ -171,10 +217,12 @@ const handler = {
 
         case "history": {
           const [scope, id] = [parts[4], parts[5]];
+          { const denied = await canRead(scope); if (denied) return denied; }
           return json(await scopeStub(scope).history(id));
         }
 
         case "remove-source": {
+          { const denied = needAdmin(); if (denied) return denied; }
           const out = await scopeStub(body.scope).removeBySource(body.uri, "admin");
           const sessions = [...new Set(out.recalledBy.map((r: any) => r.session as string))];
           await reg.logEvent("admin", "remove_source", body.scope, "ok", `${body.uri}: quarantined ${out.quarantined.join(", ") || "nothing"}`);
@@ -182,18 +230,19 @@ const handler = {
         }
 
         case "rollback": {
+          { const denied = needAdmin(); if (denied) return denied; }
           const out = await scopeStub(body.scope).rollbackSession(body.session, "admin");
           await reg.logEvent("admin", "rollback_session", body.scope, "ok", `${body.session}: quarantined ${out.quarantined.join(", ") || "nothing"}`);
           return json(out);
         }
 
         case "changes": {
-          const auth = await reg.authorize(body.session, body.scope ?? "", "write");
-          if (!auth.session) return fail("unknown session", 403);
+          { const denied = needAdmin(); if (denied) return denied; }
           return json(await reg.recordChange(body.session, body.ref, body.title));
         }
 
         case "promote": {
+          { const denied = needAdmin(); if (denied) return denied; }
           const entry = await scopeStub(body.scope).getEntry(body.entry);
           if (!entry) return fail("Unknown entry", 404);
           const clients = DEMO_SCOPES.map((s) => s.client);
@@ -206,6 +255,7 @@ const handler = {
         }
 
         case "reviews": {
+          { const denied = needAdmin(); if (denied) return denied; }
           if (req.method === "GET") return json(await scopeStub("precedent").reviews());
           const out = await scopeStub("precedent").decideReview(parts[4], !!body.approve, body.reviewer ?? "reviewer");
           await reg.logEvent(body.reviewer ?? "reviewer", "review", "precedent", out.review.status, `${parts[4]}${out.entry ? ` -> ${out.entry.id}` : ""}`);
@@ -213,13 +263,17 @@ const handler = {
         }
 
         case "walls": {
+          { const denied = needAdmin(); if (denied) return denied; }
           return json(await reg.addWall(body.supervisor, body.scope, body.reason ?? "conflict"));
         }
 
         // The agent's decision on a pair: { session, scope, entry, other, relation, note }.
         case "relate": {
-          const auth = await reg.authorize(body.session, body.scope, "write");
+          const denied = needAgent();
+          if (denied) return denied;
+          const auth = await reg.authorize(agent!.id, body.scope ?? agent!.scope, "write");
           if (!auth.ok) return fail(auth.reason!, 403);
+          body.scope ??= agent!.scope;
           try {
             const out = await scopeStub(body.scope).relate(body.entry, body.other, body.relation, auth.session.agent, body.note ?? "");
             await reg.logEvent(auth.session.agent, "relate", body.scope, body.entry, `${body.relation} ${body.other}: ${out.action}`);
@@ -230,12 +284,16 @@ const handler = {
         }
 
         case "retract": {
-          const auth = await reg.authorize(body.session, body.scope, "write");
+          const denied = needAgent();
+          if (denied) return denied;
+          const auth = await reg.authorize(agent!.id, body.scope ?? agent!.scope, "write");
           if (!auth.ok) return fail(auth.reason!, 403);
+          body.scope ??= agent!.scope;
           return json({ retracted: await scopeStub(body.scope).retract(body.entry, auth.session.agent, body.reason ?? "retracted") });
         }
 
         case "source-changed": {
+          { const denied = needAdmin(); if (denied) return denied; }
           const out = await scopeStub(body.scope).sourceChanged(body.uri, body.hash, "source-watch");
           const sessions = [...new Set(out.recalledBy.map((r: any) => r.session as string))];
           await reg.logEvent("source-watch", "source_changed", body.scope, "ok", `${body.uri} -> ${body.hash}: flagged ${out.flagged.join(", ") || "nothing"}`);
@@ -243,10 +301,12 @@ const handler = {
         }
 
         case "reverify": {
+          { const denied = needAdmin(); if (denied) return denied; }
           return json(await scopeStub(body.scope).reverify(body.entry, body.reviewer ?? "reviewer", body.sources ?? []));
         }
 
         case "conflicts": {
+          { const denied = needAdmin(); if (denied) return denied; }
           if (req.method === "GET") return json(await scopeStub(parts[4]).conflicts());
           const out = await scopeStub(body.scope).resolveConflict(parts[4], body.decision, body.reviewer ?? "reviewer", body.note ?? "");
           await reg.logEvent(body.reviewer ?? "reviewer", "resolve_conflict", body.scope, "ok", `${parts[4]}: ${body.decision}`);
@@ -254,16 +314,19 @@ const handler = {
         }
 
         case "verify": {
+          { const denied = await canRead(parts[4]); if (denied) return denied; }
           return json(await scopeStub(parts[4]).verify(parts[5]));
         }
 
         case "export": {
+          { const denied = needAdmin(); if (denied) return denied; }
           const sc = DEMO_SCOPES.find((x) => x.id === parts[4]);
           if (!sc) return fail("Unknown scope", 404);
           return json(await scopeStub(sc.id).exportBundle(sc.label));
         }
 
         case "graph": {
+          { const denied = needAdmin(); if (denied) return denied; }
           const state = await reg.state();
           const scopes: Record<string, unknown> = {};
           for (const s of DEMO_SCOPES) scopes[s.id] = await scopeStub(s.id).graph();
@@ -283,8 +346,8 @@ const handler = {
 export default handler;
 
 // ---------- MCP endpoint ----------
-// Minimal MCP over streamable HTTP (JSON responses). Agents connect to /mcp/:demo/:session.
-// In this demo the session in the URL is the agent's identity; production would use a bearer token.
+// Minimal MCP over streamable HTTP (JSON responses). Agents connect to /mcp/:demo and send their
+// session token as `Authorization: Bearer ...`. The token is the agent's identity.
 
 const MCP_TOOLS = [
   {
@@ -328,7 +391,7 @@ const MCP_TOOLS = [
 ];
 
 async function mcp(req: Request, env: Env, url: URL): Promise<Response> {
-  const [, , demo, session] = url.pathname.split("/");
+  const [, , demo, legacy] = url.pathname.split("/");
   if (req.method === "GET") return new Response("Method not allowed", { status: 405, headers: { allow: "POST" } });
   if (req.method !== "POST") return new Response(null, { status: 405 });
   const msg: any = await req.json().catch(() => null);
@@ -344,15 +407,19 @@ async function mcp(req: Request, env: Env, url: URL): Promise<Response> {
   if (msg.method === "tools/list") return reply({ tools: MCP_TOOLS });
   if (msg.method !== "tools/call") return error(-32601, `Method not found: ${msg.method}`);
 
-  // Route tool calls through the same HTTP API, so MCP gets exactly the same authorization.
+  // Route tool calls through the same HTTP API with the caller's token, so MCP gets exactly the
+  // same authorization.
+  if (legacy) return error(-32001, "Session URLs are no longer accepted. Connect to /mcp/<space> and send the session token as Authorization: Bearer <token>.");
   const reg = env.REGISTRY.get(env.REGISTRY.idFromName(demo)) as unknown as Registry;
-  const state = await reg.state().catch(() => null);
-  const sess = (state?.sessions as any[] | undefined)?.find((x) => x.id === session);
-  if (!sess) return error(-32001, "Unknown demo or session");
+  const token = bearer(req);
+  const caller = await reg.authenticate(token).catch(() => null);
+  if (caller?.kind !== "agent") return error(-32001, caller ? "MCP is for agents: use a session token, not the admin token." : "Missing, unknown, expired or revoked token.");
+  const sess = caller.session;
+  const session = sess.id;
   const a = msg.params?.arguments ?? {};
   const base = `${url.origin}/api/demo/${demo}`;
   const call = async (method: string, path: string, body?: unknown) => {
-    const r = await (globalThis as any).__trustSelf(new Request(`${base}${path}`, { method, headers: { "content-type": "application/json" }, body: body ? JSON.stringify(body) : undefined }), env);
+    const r = await (globalThis as any).__trustSelf(new Request(`${base}${path}`, { method, headers: { "content-type": "application/json", authorization: `Bearer ${token}` }, body: body ? JSON.stringify(body) : undefined }), env);
     return { status: r.status, data: await r.json() };
   };
   let out: { status: number; data: any };

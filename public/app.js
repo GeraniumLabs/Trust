@@ -5,15 +5,25 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 const trunc = (s, n) => (s.length > n ? s.slice(0, n - 1) + "…" : s);
 
-const S = { demo: null, s1: null, s2: null, graph: null, selected: null, review: null };
+const S = { demo: null, s1: null, s2: null, graph: null, selected: null, review: null, admin: null, tokens: {} };
+
+// The page acts as two kinds of caller: each agent, with the token from its session, and the
+// person running the demo, with the admin token from creating the space. Tokens stay in memory.
+const AGENT_ACTIONS = new Set(["/demo/remember", "/demo/recall", "/demo/relate", "/demo/retract"]);
+const tokenFor = (method, path, body) => (method === "POST" && AGENT_ACTIONS.has(path) ? S.tokens[body?.session] : S.admin);
 
 // ---------- API with a visible log ----------
 async function api(method, path, body) {
   const t0 = performance.now();
   const full = path.startsWith("/demo") && S.demo && path !== "/demo" ? path.replace("/demo", `/demo/${S.demo}`) : path;
-  const res = await fetch(`/api${full}`, { method, headers: { "content-type": "application/json" }, body: body ? JSON.stringify(body) : undefined });
+  const token = tokenFor(method, path, body);
+  const res = await fetch(`/api${full}`, { method, headers: { "content-type": "application/json", ...(token ? { authorization: `Bearer ${token}` } : {}) }, body: body ? JSON.stringify(body) : undefined });
   const data = await res.json().catch(() => ({}));
-  logCall(method, full, res.status, Math.round(performance.now() - t0), body, data);
+  if (data?.adminToken) S.admin = data.adminToken;
+  if (data?.token && data?.id) S.tokens[data.id] = data.token;
+  // Never echo tokens into the visible API log.
+  const shown = data && (data.adminToken || data.token) ? { ...data, ...(data.adminToken ? { adminToken: "trust_adm_…" } : {}), ...(data.token ? { token: "trust_agt_…" } : {}) } : data;
+  logCall(method, full, res.status, Math.round(performance.now() - t0), body, shown);
   return { status: res.status, ok: res.ok, data };
 }
 const post = (p, b) => api("POST", `/demo${p}`, b);
@@ -70,8 +80,7 @@ async function startAgents() {
   await refresh();
   done("m1");
   enable("b2", "b3", "b4", "b5", "b6", "bD", "bS");
-  $("exportLink").href = `/api/demo/${S.demo}/export/northwind`;
-  $("mcpUrl").textContent = `${location.origin}/mcp/${S.demo}/${S.s2.id}`;
+  $("mcpUrl").textContent = `${location.origin}/mcp/${S.demo}`;
   $("extras").hidden = false;
   setBusy(false);
 }
@@ -427,3 +436,16 @@ $("bS").onclick = guard(async () => { await sourceChange(); $("bS").disabled = t
 $("bS2").onclick = guard(reverify);
 $("bReset").onclick = () => location.reload();
 $("graph").addEventListener("click", (ev) => { if (ev.target === $("graph")) { highlight(null); } });
+
+// Export needs the admin token, so fetch it and open the result rather than linking directly.
+$("exportLink").addEventListener("click", async (ev) => {
+  ev.preventDefault();
+  const r = await get("/export/northwind");
+  const url = URL.createObjectURL(new Blob([JSON.stringify(r.data, null, 2)], { type: "application/json" }));
+  window.open(url, "_blank", "noopener");
+});
+$("mcpCopy").addEventListener("click", async () => {
+  await navigator.clipboard.writeText(S.tokens[S.s2.id]);
+  $("mcpCopy").textContent = "copied";
+  setTimeout(() => ($("mcpCopy").textContent = "copy Agent 2's token"), 1500);
+});

@@ -11,6 +11,21 @@ export interface RegistryEnv {
 
 const DEMO_TTL_MS = 60 * 60 * 1000; // throwaway demos expire after an hour
 const OP_LIMIT = 3000; // per-demo cap so a public demo can't be abused
+const AGENT_TOKEN_TTL_MS = 12 * 60 * 60 * 1000;
+
+// Tokens are random 256-bit values. Only their SHA-256 hash is stored, so a copy of the database
+// can't be replayed as credentials. The prefix says what kind of token it is, for humans and
+// secret scanners; it grants nothing.
+const b64url = (bytes: Uint8Array) => btoa(String.fromCharCode(...bytes)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+export async function hashToken(token: string) {
+  const d = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token)));
+  return [...d].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+function newToken(kind: "adm" | "agt") {
+  return `trust_${kind}_${b64url(crypto.getRandomValues(new Uint8Array(32)))}`;
+}
+
+export type Caller = { kind: "admin" } | { kind: "agent"; session: SessionInfo };
 
 export class Registry extends DurableObject<RegistryEnv> {
   private ready = false;
@@ -23,6 +38,7 @@ export class Registry extends DurableObject<RegistryEnv> {
     sql.exec(`CREATE TABLE IF NOT EXISTS sessions (id TEXT PRIMARY KEY, scope TEXT, agent TEXT, supervisor TEXT, status TEXT, started_at INTEGER)`);
     sql.exec(`CREATE TABLE IF NOT EXISTS walls (supervisor TEXT, scope TEXT, reason TEXT, at INTEGER)`);
     sql.exec(`CREATE TABLE IF NOT EXISTS changes (id TEXT PRIMARY KEY, session TEXT, ref TEXT, title TEXT, at INTEGER)`);
+    sql.exec(`CREATE TABLE IF NOT EXISTS tokens (hash TEXT PRIMARY KEY, kind TEXT, session TEXT, created_at INTEGER, expires_at INTEGER, revoked_at INTEGER)`);
     sql.exec(`CREATE TABLE IF NOT EXISTS audit (n INTEGER PRIMARY KEY AUTOINCREMENT, at INTEGER, actor TEXT, action TEXT, scope TEXT, outcome TEXT, detail TEXT)`);
     this.ready = true;
   }
@@ -41,7 +57,38 @@ export class Registry extends DurableObject<RegistryEnv> {
     for (const s of scopes) sql.exec(`INSERT OR REPLACE INTO scopes VALUES (?, ?, ?, ?)`, s.id, s.label, s.client, s.kind);
     sql.exec(`INSERT OR REPLACE INTO meta VALUES ('created_at', ?)`, String(Date.now()));
     await this.ctx.storage.setAlarm(Date.now() + DEMO_TTL_MS);
-    return this.scopes();
+    // The admin token belongs to whoever created this space: a person, or the service acting for them.
+    const adminToken = newToken("adm");
+    sql.exec(`INSERT INTO tokens VALUES (?, 'admin', NULL, ?, NULL, NULL)`, await hashToken(adminToken), Date.now());
+    this.log("admin", "setup", "", "ok", "space created; admin token issued");
+    return { scopes: await this.scopes(), adminToken };
+  }
+
+  // Who is calling. Returns null for a missing, unknown, expired or revoked token.
+  async authenticate(token: string | null): Promise<Caller | null> {
+    this.init();
+    if (!token) return null;
+    const sql = this.ctx.storage.sql;
+    const row = sql.exec(`SELECT * FROM tokens WHERE hash = ?`, await hashToken(token)).toArray()[0] as any;
+    if (!row || row.revoked_at || (row.expires_at && Number(row.expires_at) < Date.now())) {
+      this.log("unknown", "authenticate", "", "denied", row ? (row.revoked_at ? "revoked token" : "expired token") : "unknown token");
+      return null;
+    }
+    if (row.kind === "admin") return { kind: "admin" };
+    const session = sql.exec(`SELECT * FROM sessions WHERE id = ?`, row.session).toArray()[0] as unknown as SessionInfo | undefined;
+    return session ? { kind: "agent", session } : null;
+  }
+
+  // Ends a session and revokes its token. Its memories stay; it can't act again.
+  async endSession(sessionId: string, actor: string) {
+    this.init();
+    const sql = this.ctx.storage.sql;
+    const s = sql.exec(`SELECT * FROM sessions WHERE id = ?`, sessionId).toArray()[0] as any;
+    if (!s) throw new Error("unknown session");
+    sql.exec(`UPDATE sessions SET status = 'ended' WHERE id = ?`, sessionId);
+    sql.exec(`UPDATE tokens SET revoked_at = ? WHERE session = ? AND revoked_at IS NULL`, Date.now(), sessionId);
+    this.log(actor, "end_session", s.scope, "ok", `${sessionId} ended; token revoked`);
+    return { id: sessionId, status: "ended" };
   }
 
   async scopes() {
@@ -61,7 +108,9 @@ export class Registry extends DurableObject<RegistryEnv> {
     return n;
   }
 
-  async startSession(scope: string, agent: string, supervisor: string): Promise<SessionInfo> {
+  // Only the admin can start a session: the agent's name, supervisor and scope are fixed here,
+  // and every memory it writes carries them. The token is returned once and never stored.
+  async startSession(scope: string, agent: string, supervisor: string): Promise<SessionInfo & { token: string; token_expires_at: number }> {
     this.init();
     const sql = this.ctx.storage.sql;
     if (!sql.exec(`SELECT 1 FROM scopes WHERE id = ?`, scope).toArray().length) throw new Error(`Unknown scope ${scope}`);
@@ -72,9 +121,13 @@ export class Registry extends DurableObject<RegistryEnv> {
     }
     const id = `s-${this.next("session")}`;
     const s: SessionInfo = { id, scope, agent, supervisor, status: "active", started_at: Date.now() };
+    if (!agent?.trim() || !supervisor?.trim()) throw new Error("agent and supervisor are required");
     sql.exec(`INSERT INTO sessions VALUES (?, ?, ?, ?, ?, ?)`, s.id, s.scope, s.agent, s.supervisor, s.status, s.started_at);
+    const token = newToken("agt");
+    const expires = Date.now() + AGENT_TOKEN_TTL_MS;
+    sql.exec(`INSERT INTO tokens VALUES (?, 'agent', ?, ?, ?, NULL)`, await hashToken(token), id, Date.now(), expires);
     this.log(agent, "start_session", scope, "ok", `${id} supervised by ${supervisor}`);
-    return s;
+    return { ...s, token, token_expires_at: expires };
   }
 
   // The one place access is decided. Checked on every call, so a new wall applies immediately.
@@ -84,8 +137,9 @@ export class Registry extends DurableObject<RegistryEnv> {
     const s = sql.exec(`SELECT * FROM sessions WHERE id = ?`, sessionId).toArray()[0] as unknown as SessionInfo | undefined;
     if (!s) return { ok: false, reason: "unknown session" } as const;
     if (s.status !== "active") {
-      this.log(s.agent, action, scope, "denied", `${s.id} is paused by a wall`);
-      return { ok: false, reason: "session paused by a wall", session: s } as const;
+      const why = s.status === "ended" ? "session has ended" : "session paused by a wall";
+      this.log(s.agent, action, scope, "denied", `${s.id}: ${why}`);
+      return { ok: false, reason: why, session: s } as const;
     }
     const target = sql.exec(`SELECT * FROM scopes WHERE id = ?`, scope).toArray()[0] as any;
     if (!target) return { ok: false, reason: "unknown scope", session: s } as const;
