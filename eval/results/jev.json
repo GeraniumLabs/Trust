@@ -1,0 +1,1854 @@
+{
+  "base": "http://localhost:8788",
+  "at": "2026-11-21T14:04:46.640Z",
+  "pairs": {
+    "summary": {
+      "n": 100,
+      "judge": "systemone:jev-latest",
+      "accuracy": 0.98,
+      "macroF1": 0.9802197802197801,
+      "actionAccuracy": 0.98,
+      "harmfulMerges": [],
+      "wrongfulSupersedes": [],
+      "missedConflicts": [],
+      "falseConflicts": [],
+      "fallbacks": 0,
+      "byDifficulty": {
+        "easy": 1,
+        "hard": 0.9574468085106383
+      },
+      "byDomain": {
+        "code": 1,
+        "legal": 1,
+        "ops": 1,
+        "preferences": 0.8666666666666667,
+        "research": 1
+      },
+      "latencyMs": {
+        "judgeP50": 64,
+        "judgeP95": 169,
+        "roundTripP50": 73
+      }
+    },
+    "perLabel": {
+      "duplicate": {
+        "precision": 1,
+        "recall": 0.95,
+        "f1": 0.9743589743589743,
+        "support": 20
+      },
+      "refines": {
+        "precision": 0.9090909090909091,
+        "recall": 1,
+        "f1": 0.9523809523809523,
+        "support": 20
+      },
+      "supersedes": {
+        "precision": 1,
+        "recall": 1,
+        "f1": 1,
+        "support": 20
+      },
+      "contradicts": {
+        "precision": 1,
+        "recall": 1,
+        "f1": 1,
+        "support": 20
+      },
+      "unrelated": {
+        "precision": 1,
+        "recall": 0.95,
+        "f1": 0.9743589743589743,
+        "support": 20
+      }
+    },
+    "confusion": {
+      "duplicate": {
+        "duplicate": 19,
+        "refines": 1,
+        "supersedes": 0,
+        "contradicts": 0,
+        "unrelated": 0
+      },
+      "refines": {
+        "duplicate": 0,
+        "refines": 20,
+        "supersedes": 0,
+        "contradicts": 0,
+        "unrelated": 0
+      },
+      "supersedes": {
+        "duplicate": 0,
+        "refines": 0,
+        "supersedes": 20,
+        "contradicts": 0,
+        "unrelated": 0
+      },
+      "contradicts": {
+        "duplicate": 0,
+        "refines": 0,
+        "supersedes": 0,
+        "contradicts": 20,
+        "unrelated": 0
+      },
+      "unrelated": {
+        "duplicate": 0,
+        "refines": 1,
+        "supersedes": 0,
+        "contradicts": 0,
+        "unrelated": 19
+      }
+    },
+    "results": [
+      {
+        "id": "dup-01",
+        "domain": "code",
+        "difficulty": "easy",
+        "gold": "duplicate",
+        "pred": "duplicate",
+        "confidence": 0.99,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 180,
+        "roundTripMs": 189,
+        "goldAction": "merge",
+        "action": "merge"
+      },
+      {
+        "id": "dup-02",
+        "domain": "code",
+        "difficulty": "hard",
+        "gold": "duplicate",
+        "pred": "duplicate",
+        "confidence": 0.91,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 178,
+        "roundTripMs": 190,
+        "goldAction": "merge",
+        "action": "merge"
+      },
+      {
+        "id": "dup-03",
+        "domain": "ops",
+        "difficulty": "easy",
+        "gold": "duplicate",
+        "pred": "duplicate",
+        "confidence": 1,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 161,
+        "roundTripMs": 177,
+        "goldAction": "merge",
+        "action": "merge"
+      },
+      {
+        "id": "dup-04",
+        "domain": "ops",
+        "difficulty": "hard",
+        "gold": "duplicate",
+        "pred": "duplicate",
+        "confidence": 0.96,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 204,
+        "roundTripMs": 215,
+        "goldAction": "merge",
+        "action": "merge"
+      },
+      {
+        "id": "dup-05",
+        "domain": "legal",
+        "difficulty": "easy",
+        "gold": "duplicate",
+        "pred": "duplicate",
+        "confidence": 0.98,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 90,
+        "roundTripMs": 98,
+        "goldAction": "merge",
+        "action": "merge"
+      },
+      {
+        "id": "dup-06",
+        "domain": "legal",
+        "difficulty": "hard",
+        "gold": "duplicate",
+        "pred": "duplicate",
+        "confidence": 1,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 100,
+        "roundTripMs": 105,
+        "goldAction": "merge",
+        "action": "merge"
+      },
+      {
+        "id": "dup-07",
+        "domain": "preferences",
+        "difficulty": "easy",
+        "gold": "duplicate",
+        "pred": "duplicate",
+        "confidence": 1,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 64,
+        "roundTripMs": 71,
+        "goldAction": "merge",
+        "action": "merge"
+      },
+      {
+        "id": "dup-08",
+        "domain": "research",
+        "difficulty": "easy",
+        "gold": "duplicate",
+        "pred": "duplicate",
+        "confidence": 0.69,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 58,
+        "roundTripMs": 63,
+        "goldAction": "merge",
+        "action": "keep"
+      },
+      {
+        "id": "dup-09",
+        "domain": "code",
+        "difficulty": "hard",
+        "gold": "duplicate",
+        "pred": "duplicate",
+        "confidence": 0.99,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 55,
+        "roundTripMs": 62,
+        "goldAction": "merge",
+        "action": "merge"
+      },
+      {
+        "id": "dup-10",
+        "domain": "code",
+        "difficulty": "easy",
+        "gold": "duplicate",
+        "pred": "duplicate",
+        "confidence": 0.99,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 76,
+        "roundTripMs": 82,
+        "goldAction": "merge",
+        "action": "merge"
+      },
+      {
+        "id": "dup-11",
+        "domain": "ops",
+        "difficulty": "easy",
+        "gold": "duplicate",
+        "pred": "duplicate",
+        "confidence": 0.96,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 51,
+        "roundTripMs": 57,
+        "goldAction": "merge",
+        "action": "merge"
+      },
+      {
+        "id": "dup-12",
+        "domain": "legal",
+        "difficulty": "hard",
+        "gold": "duplicate",
+        "pred": "duplicate",
+        "confidence": 1,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 43,
+        "roundTripMs": 48,
+        "goldAction": "merge",
+        "action": "merge"
+      },
+      {
+        "id": "dup-13",
+        "domain": "preferences",
+        "difficulty": "hard",
+        "gold": "duplicate",
+        "pred": "refines",
+        "confidence": 0.39,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 41,
+        "roundTripMs": 46,
+        "goldAction": "merge",
+        "action": "keep"
+      },
+      {
+        "id": "dup-14",
+        "domain": "research",
+        "difficulty": "easy",
+        "gold": "duplicate",
+        "pred": "duplicate",
+        "confidence": 0.94,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 56,
+        "roundTripMs": 61,
+        "goldAction": "merge",
+        "action": "merge"
+      },
+      {
+        "id": "dup-15",
+        "domain": "code",
+        "difficulty": "hard",
+        "gold": "duplicate",
+        "pred": "duplicate",
+        "confidence": 0.87,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 53,
+        "roundTripMs": 58,
+        "goldAction": "merge",
+        "action": "merge"
+      },
+      {
+        "id": "dup-16",
+        "domain": "ops",
+        "difficulty": "easy",
+        "gold": "duplicate",
+        "pred": "duplicate",
+        "confidence": 1,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 50,
+        "roundTripMs": 55,
+        "goldAction": "merge",
+        "action": "merge"
+      },
+      {
+        "id": "dup-17",
+        "domain": "legal",
+        "difficulty": "easy",
+        "gold": "duplicate",
+        "pred": "duplicate",
+        "confidence": 1,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 64,
+        "roundTripMs": 69,
+        "goldAction": "merge",
+        "action": "merge"
+      },
+      {
+        "id": "dup-18",
+        "domain": "code",
+        "difficulty": "easy",
+        "gold": "duplicate",
+        "pred": "duplicate",
+        "confidence": 0.99,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 72,
+        "roundTripMs": 78,
+        "goldAction": "merge",
+        "action": "merge"
+      },
+      {
+        "id": "dup-19",
+        "domain": "preferences",
+        "difficulty": "easy",
+        "gold": "duplicate",
+        "pred": "duplicate",
+        "confidence": 1,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 113,
+        "roundTripMs": 118,
+        "goldAction": "merge",
+        "action": "merge"
+      },
+      {
+        "id": "dup-20",
+        "domain": "research",
+        "difficulty": "hard",
+        "gold": "duplicate",
+        "pred": "duplicate",
+        "confidence": 1,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 31,
+        "roundTripMs": 36,
+        "goldAction": "merge",
+        "action": "merge"
+      },
+      {
+        "id": "ref-01",
+        "domain": "code",
+        "difficulty": "easy",
+        "gold": "refines",
+        "pred": "refines",
+        "confidence": 1,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 52,
+        "roundTripMs": 58,
+        "goldAction": "keep",
+        "action": "keep"
+      },
+      {
+        "id": "ref-02",
+        "domain": "code",
+        "difficulty": "hard",
+        "gold": "refines",
+        "pred": "refines",
+        "confidence": 0.99,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 52,
+        "roundTripMs": 57,
+        "goldAction": "keep",
+        "action": "keep"
+      },
+      {
+        "id": "ref-03",
+        "domain": "ops",
+        "difficulty": "easy",
+        "gold": "refines",
+        "pred": "refines",
+        "confidence": 0.98,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 53,
+        "roundTripMs": 58,
+        "goldAction": "keep",
+        "action": "keep"
+      },
+      {
+        "id": "ref-04",
+        "domain": "ops",
+        "difficulty": "easy",
+        "gold": "refines",
+        "pred": "refines",
+        "confidence": 1,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 50,
+        "roundTripMs": 61,
+        "goldAction": "keep",
+        "action": "keep"
+      },
+      {
+        "id": "ref-05",
+        "domain": "legal",
+        "difficulty": "easy",
+        "gold": "refines",
+        "pred": "refines",
+        "confidence": 1,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 144,
+        "roundTripMs": 169,
+        "goldAction": "keep",
+        "action": "keep"
+      },
+      {
+        "id": "ref-06",
+        "domain": "legal",
+        "difficulty": "easy",
+        "gold": "refines",
+        "pred": "refines",
+        "confidence": 1,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 132,
+        "roundTripMs": 158,
+        "goldAction": "keep",
+        "action": "keep"
+      },
+      {
+        "id": "ref-07",
+        "domain": "preferences",
+        "difficulty": "easy",
+        "gold": "refines",
+        "pred": "refines",
+        "confidence": 1,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 111,
+        "roundTripMs": 133,
+        "goldAction": "keep",
+        "action": "keep"
+      },
+      {
+        "id": "ref-08",
+        "domain": "research",
+        "difficulty": "easy",
+        "gold": "refines",
+        "pred": "refines",
+        "confidence": 1,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 126,
+        "roundTripMs": 133,
+        "goldAction": "keep",
+        "action": "keep"
+      },
+      {
+        "id": "ref-09",
+        "domain": "code",
+        "difficulty": "easy",
+        "gold": "refines",
+        "pred": "refines",
+        "confidence": 1,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 58,
+        "roundTripMs": 75,
+        "goldAction": "keep",
+        "action": "keep"
+      },
+      {
+        "id": "ref-10",
+        "domain": "code",
+        "difficulty": "easy",
+        "gold": "refines",
+        "pred": "refines",
+        "confidence": 1,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 95,
+        "roundTripMs": 107,
+        "goldAction": "keep",
+        "action": "keep"
+      },
+      {
+        "id": "ref-11",
+        "domain": "ops",
+        "difficulty": "easy",
+        "gold": "refines",
+        "pred": "refines",
+        "confidence": 1,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 57,
+        "roundTripMs": 67,
+        "goldAction": "keep",
+        "action": "keep"
+      },
+      {
+        "id": "ref-12",
+        "domain": "legal",
+        "difficulty": "easy",
+        "gold": "refines",
+        "pred": "refines",
+        "confidence": 0.99,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 76,
+        "roundTripMs": 88,
+        "goldAction": "keep",
+        "action": "keep"
+      },
+      {
+        "id": "ref-13",
+        "domain": "preferences",
+        "difficulty": "hard",
+        "gold": "refines",
+        "pred": "refines",
+        "confidence": 0.79,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 58,
+        "roundTripMs": 66,
+        "goldAction": "keep",
+        "action": "keep"
+      },
+      {
+        "id": "ref-14",
+        "domain": "research",
+        "difficulty": "easy",
+        "gold": "refines",
+        "pred": "refines",
+        "confidence": 1,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 63,
+        "roundTripMs": 71,
+        "goldAction": "keep",
+        "action": "keep"
+      },
+      {
+        "id": "ref-15",
+        "domain": "code",
+        "difficulty": "hard",
+        "gold": "refines",
+        "pred": "refines",
+        "confidence": 1,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 67,
+        "roundTripMs": 75,
+        "goldAction": "keep",
+        "action": "keep"
+      },
+      {
+        "id": "ref-16",
+        "domain": "ops",
+        "difficulty": "hard",
+        "gold": "refines",
+        "pred": "refines",
+        "confidence": 0.98,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 55,
+        "roundTripMs": 62,
+        "goldAction": "keep",
+        "action": "keep"
+      },
+      {
+        "id": "ref-17",
+        "domain": "legal",
+        "difficulty": "easy",
+        "gold": "refines",
+        "pred": "refines",
+        "confidence": 0.99,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 64,
+        "roundTripMs": 70,
+        "goldAction": "keep",
+        "action": "keep"
+      },
+      {
+        "id": "ref-18",
+        "domain": "code",
+        "difficulty": "easy",
+        "gold": "refines",
+        "pred": "refines",
+        "confidence": 1,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 66,
+        "roundTripMs": 72,
+        "goldAction": "keep",
+        "action": "keep"
+      },
+      {
+        "id": "ref-19",
+        "domain": "preferences",
+        "difficulty": "hard",
+        "gold": "refines",
+        "pred": "refines",
+        "confidence": 1,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 65,
+        "roundTripMs": 75,
+        "goldAction": "keep",
+        "action": "keep"
+      },
+      {
+        "id": "ref-20",
+        "domain": "research",
+        "difficulty": "hard",
+        "gold": "refines",
+        "pred": "refines",
+        "confidence": 0.86,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 54,
+        "roundTripMs": 65,
+        "goldAction": "keep",
+        "action": "keep"
+      },
+      {
+        "id": "sup-01",
+        "domain": "code",
+        "difficulty": "easy",
+        "gold": "supersedes",
+        "pred": "supersedes",
+        "confidence": 1,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 49,
+        "roundTripMs": 55,
+        "goldAction": "supersede",
+        "action": "supersede"
+      },
+      {
+        "id": "sup-02",
+        "domain": "code",
+        "difficulty": "easy",
+        "gold": "supersedes",
+        "pred": "supersedes",
+        "confidence": 0.99,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 58,
+        "roundTripMs": 66,
+        "goldAction": "supersede",
+        "action": "supersede"
+      },
+      {
+        "id": "sup-03",
+        "domain": "ops",
+        "difficulty": "easy",
+        "gold": "supersedes",
+        "pred": "supersedes",
+        "confidence": 0.95,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 69,
+        "roundTripMs": 76,
+        "goldAction": "supersede",
+        "action": "supersede"
+      },
+      {
+        "id": "sup-04",
+        "domain": "ops",
+        "difficulty": "hard",
+        "gold": "supersedes",
+        "pred": "supersedes",
+        "confidence": 0.98,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 56,
+        "roundTripMs": 68,
+        "goldAction": "supersede",
+        "action": "supersede"
+      },
+      {
+        "id": "sup-05",
+        "domain": "legal",
+        "difficulty": "easy",
+        "gold": "supersedes",
+        "pred": "supersedes",
+        "confidence": 0.96,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 88,
+        "roundTripMs": 93,
+        "goldAction": "supersede",
+        "action": "supersede"
+      },
+      {
+        "id": "sup-06",
+        "domain": "legal",
+        "difficulty": "easy",
+        "gold": "supersedes",
+        "pred": "supersedes",
+        "confidence": 0.99,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 60,
+        "roundTripMs": 65,
+        "goldAction": "supersede",
+        "action": "supersede"
+      },
+      {
+        "id": "sup-07",
+        "domain": "preferences",
+        "difficulty": "easy",
+        "gold": "supersedes",
+        "pred": "supersedes",
+        "confidence": 0.82,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 52,
+        "roundTripMs": 59,
+        "goldAction": "supersede",
+        "action": "supersede"
+      },
+      {
+        "id": "sup-08",
+        "domain": "research",
+        "difficulty": "easy",
+        "gold": "supersedes",
+        "pred": "supersedes",
+        "confidence": 0.96,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 48,
+        "roundTripMs": 54,
+        "goldAction": "supersede",
+        "action": "supersede"
+      },
+      {
+        "id": "sup-09",
+        "domain": "code",
+        "difficulty": "easy",
+        "gold": "supersedes",
+        "pred": "supersedes",
+        "confidence": 1,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 169,
+        "roundTripMs": 187,
+        "goldAction": "supersede",
+        "action": "supersede"
+      },
+      {
+        "id": "sup-10",
+        "domain": "code",
+        "difficulty": "hard",
+        "gold": "supersedes",
+        "pred": "supersedes",
+        "confidence": 0.96,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 149,
+        "roundTripMs": 167,
+        "goldAction": "supersede",
+        "action": "supersede"
+      },
+      {
+        "id": "sup-11",
+        "domain": "ops",
+        "difficulty": "easy",
+        "gold": "supersedes",
+        "pred": "supersedes",
+        "confidence": 0.94,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 140,
+        "roundTripMs": 159,
+        "goldAction": "supersede",
+        "action": "supersede"
+      },
+      {
+        "id": "sup-12",
+        "domain": "legal",
+        "difficulty": "easy",
+        "gold": "supersedes",
+        "pred": "supersedes",
+        "confidence": 0.98,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 133,
+        "roundTripMs": 155,
+        "goldAction": "supersede",
+        "action": "supersede"
+      },
+      {
+        "id": "sup-13",
+        "domain": "preferences",
+        "difficulty": "easy",
+        "gold": "supersedes",
+        "pred": "supersedes",
+        "confidence": 0.8,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 61,
+        "roundTripMs": 83,
+        "goldAction": "supersede",
+        "action": "supersede"
+      },
+      {
+        "id": "sup-14",
+        "domain": "research",
+        "difficulty": "easy",
+        "gold": "supersedes",
+        "pred": "supersedes",
+        "confidence": 0.99,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 70,
+        "roundTripMs": 85,
+        "goldAction": "supersede",
+        "action": "supersede"
+      },
+      {
+        "id": "sup-15",
+        "domain": "code",
+        "difficulty": "hard",
+        "gold": "supersedes",
+        "pred": "supersedes",
+        "confidence": 0.99,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 57,
+        "roundTripMs": 76,
+        "goldAction": "supersede",
+        "action": "supersede"
+      },
+      {
+        "id": "sup-16",
+        "domain": "ops",
+        "difficulty": "hard",
+        "gold": "supersedes",
+        "pred": "supersedes",
+        "confidence": 0.99,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 71,
+        "roundTripMs": 85,
+        "goldAction": "supersede",
+        "action": "supersede"
+      },
+      {
+        "id": "sup-17",
+        "domain": "legal",
+        "difficulty": "easy",
+        "gold": "supersedes",
+        "pred": "supersedes",
+        "confidence": 1,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 55,
+        "roundTripMs": 70,
+        "goldAction": "supersede",
+        "action": "supersede"
+      },
+      {
+        "id": "sup-18",
+        "domain": "code",
+        "difficulty": "easy",
+        "gold": "supersedes",
+        "pred": "supersedes",
+        "confidence": 0.99,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 67,
+        "roundTripMs": 74,
+        "goldAction": "supersede",
+        "action": "supersede"
+      },
+      {
+        "id": "sup-19",
+        "domain": "preferences",
+        "difficulty": "easy",
+        "gold": "supersedes",
+        "pred": "supersedes",
+        "confidence": 1,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 62,
+        "roundTripMs": 68,
+        "goldAction": "supersede",
+        "action": "supersede"
+      },
+      {
+        "id": "sup-20",
+        "domain": "research",
+        "difficulty": "hard",
+        "gold": "supersedes",
+        "pred": "supersedes",
+        "confidence": 0.9,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 50,
+        "roundTripMs": 56,
+        "goldAction": "supersede",
+        "action": "supersede"
+      },
+      {
+        "id": "con-01",
+        "domain": "code",
+        "difficulty": "easy",
+        "gold": "contradicts",
+        "pred": "contradicts",
+        "confidence": 0.98,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 81,
+        "roundTripMs": 88,
+        "goldAction": "conflict",
+        "action": "conflict"
+      },
+      {
+        "id": "con-02",
+        "domain": "code",
+        "difficulty": "hard",
+        "gold": "contradicts",
+        "pred": "contradicts",
+        "confidence": 0.9,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 74,
+        "roundTripMs": 84,
+        "goldAction": "conflict",
+        "action": "conflict"
+      },
+      {
+        "id": "con-03",
+        "domain": "ops",
+        "difficulty": "hard",
+        "gold": "contradicts",
+        "pred": "contradicts",
+        "confidence": 0.96,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 63,
+        "roundTripMs": 75,
+        "goldAction": "conflict",
+        "action": "conflict"
+      },
+      {
+        "id": "con-04",
+        "domain": "ops",
+        "difficulty": "hard",
+        "gold": "contradicts",
+        "pred": "contradicts",
+        "confidence": 0.99,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 90,
+        "roundTripMs": 95,
+        "goldAction": "conflict",
+        "action": "conflict"
+      },
+      {
+        "id": "con-05",
+        "domain": "legal",
+        "difficulty": "easy",
+        "gold": "contradicts",
+        "pred": "contradicts",
+        "confidence": 0.92,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 74,
+        "roundTripMs": 84,
+        "goldAction": "conflict",
+        "action": "conflict"
+      },
+      {
+        "id": "con-06",
+        "domain": "legal",
+        "difficulty": "hard",
+        "gold": "contradicts",
+        "pred": "contradicts",
+        "confidence": 0.94,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 67,
+        "roundTripMs": 80,
+        "goldAction": "conflict",
+        "action": "conflict"
+      },
+      {
+        "id": "con-07",
+        "domain": "preferences",
+        "difficulty": "hard",
+        "gold": "contradicts",
+        "pred": "contradicts",
+        "confidence": 1,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 47,
+        "roundTripMs": 57,
+        "goldAction": "conflict",
+        "action": "conflict"
+      },
+      {
+        "id": "con-08",
+        "domain": "research",
+        "difficulty": "hard",
+        "gold": "contradicts",
+        "pred": "contradicts",
+        "confidence": 0.99,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 64,
+        "roundTripMs": 68,
+        "goldAction": "conflict",
+        "action": "conflict"
+      },
+      {
+        "id": "con-09",
+        "domain": "code",
+        "difficulty": "easy",
+        "gold": "contradicts",
+        "pred": "contradicts",
+        "confidence": 0.98,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 63,
+        "roundTripMs": 69,
+        "goldAction": "conflict",
+        "action": "conflict"
+      },
+      {
+        "id": "con-10",
+        "domain": "code",
+        "difficulty": "hard",
+        "gold": "contradicts",
+        "pred": "contradicts",
+        "confidence": 0.98,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 51,
+        "roundTripMs": 58,
+        "goldAction": "conflict",
+        "action": "conflict"
+      },
+      {
+        "id": "con-11",
+        "domain": "ops",
+        "difficulty": "hard",
+        "gold": "contradicts",
+        "pred": "contradicts",
+        "confidence": 0.98,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 62,
+        "roundTripMs": 70,
+        "goldAction": "conflict",
+        "action": "conflict"
+      },
+      {
+        "id": "con-12",
+        "domain": "legal",
+        "difficulty": "hard",
+        "gold": "contradicts",
+        "pred": "contradicts",
+        "confidence": 1,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 57,
+        "roundTripMs": 64,
+        "goldAction": "conflict",
+        "action": "conflict"
+      },
+      {
+        "id": "con-13",
+        "domain": "preferences",
+        "difficulty": "easy",
+        "gold": "contradicts",
+        "pred": "contradicts",
+        "confidence": 0.99,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 158,
+        "roundTripMs": 176,
+        "goldAction": "conflict",
+        "action": "conflict"
+      },
+      {
+        "id": "con-14",
+        "domain": "research",
+        "difficulty": "hard",
+        "gold": "contradicts",
+        "pred": "contradicts",
+        "confidence": 1,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 135,
+        "roundTripMs": 155,
+        "goldAction": "conflict",
+        "action": "conflict"
+      },
+      {
+        "id": "con-15",
+        "domain": "code",
+        "difficulty": "easy",
+        "gold": "contradicts",
+        "pred": "contradicts",
+        "confidence": 0.98,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 134,
+        "roundTripMs": 151,
+        "goldAction": "conflict",
+        "action": "conflict"
+      },
+      {
+        "id": "con-16",
+        "domain": "ops",
+        "difficulty": "hard",
+        "gold": "contradicts",
+        "pred": "contradicts",
+        "confidence": 0.74,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 128,
+        "roundTripMs": 150,
+        "goldAction": "conflict",
+        "action": "conflict"
+      },
+      {
+        "id": "con-17",
+        "domain": "legal",
+        "difficulty": "hard",
+        "gold": "contradicts",
+        "pred": "contradicts",
+        "confidence": 0.62,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 42,
+        "roundTripMs": 57,
+        "goldAction": "conflict",
+        "action": "conflict"
+      },
+      {
+        "id": "con-18",
+        "domain": "code",
+        "difficulty": "hard",
+        "gold": "contradicts",
+        "pred": "contradicts",
+        "confidence": 0.95,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 74,
+        "roundTripMs": 92,
+        "goldAction": "conflict",
+        "action": "conflict"
+      },
+      {
+        "id": "con-19",
+        "domain": "preferences",
+        "difficulty": "hard",
+        "gold": "contradicts",
+        "pred": "contradicts",
+        "confidence": 0.9,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 69,
+        "roundTripMs": 91,
+        "goldAction": "conflict",
+        "action": "conflict"
+      },
+      {
+        "id": "con-20",
+        "domain": "legal",
+        "difficulty": "easy",
+        "gold": "contradicts",
+        "pred": "contradicts",
+        "confidence": 0.92,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 88,
+        "roundTripMs": 99,
+        "goldAction": "conflict",
+        "action": "conflict"
+      },
+      {
+        "id": "unr-01",
+        "domain": "code",
+        "difficulty": "hard",
+        "gold": "unrelated",
+        "pred": "unrelated",
+        "confidence": 1,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 49,
+        "roundTripMs": 55,
+        "goldAction": "keep",
+        "action": "keep"
+      },
+      {
+        "id": "unr-02",
+        "domain": "code",
+        "difficulty": "easy",
+        "gold": "unrelated",
+        "pred": "unrelated",
+        "confidence": 1,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 56,
+        "roundTripMs": 63,
+        "goldAction": "keep",
+        "action": "keep"
+      },
+      {
+        "id": "unr-03",
+        "domain": "ops",
+        "difficulty": "hard",
+        "gold": "unrelated",
+        "pred": "unrelated",
+        "confidence": 0.99,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 63,
+        "roundTripMs": 72,
+        "goldAction": "keep",
+        "action": "keep"
+      },
+      {
+        "id": "unr-04",
+        "domain": "ops",
+        "difficulty": "hard",
+        "gold": "unrelated",
+        "pred": "unrelated",
+        "confidence": 1,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 76,
+        "roundTripMs": 81,
+        "goldAction": "keep",
+        "action": "keep"
+      },
+      {
+        "id": "unr-05",
+        "domain": "legal",
+        "difficulty": "easy",
+        "gold": "unrelated",
+        "pred": "unrelated",
+        "confidence": 1,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 54,
+        "roundTripMs": 62,
+        "goldAction": "keep",
+        "action": "keep"
+      },
+      {
+        "id": "unr-06",
+        "domain": "legal",
+        "difficulty": "hard",
+        "gold": "unrelated",
+        "pred": "unrelated",
+        "confidence": 1,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 41,
+        "roundTripMs": 46,
+        "goldAction": "keep",
+        "action": "keep"
+      },
+      {
+        "id": "unr-07",
+        "domain": "preferences",
+        "difficulty": "easy",
+        "gold": "unrelated",
+        "pred": "unrelated",
+        "confidence": 1,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 54,
+        "roundTripMs": 60,
+        "goldAction": "keep",
+        "action": "keep"
+      },
+      {
+        "id": "unr-08",
+        "domain": "research",
+        "difficulty": "hard",
+        "gold": "unrelated",
+        "pred": "unrelated",
+        "confidence": 0.9,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 60,
+        "roundTripMs": 67,
+        "goldAction": "keep",
+        "action": "keep"
+      },
+      {
+        "id": "unr-09",
+        "domain": "code",
+        "difficulty": "easy",
+        "gold": "unrelated",
+        "pred": "unrelated",
+        "confidence": 1,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 53,
+        "roundTripMs": 57,
+        "goldAction": "keep",
+        "action": "keep"
+      },
+      {
+        "id": "unr-10",
+        "domain": "code",
+        "difficulty": "hard",
+        "gold": "unrelated",
+        "pred": "unrelated",
+        "confidence": 0.89,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 61,
+        "roundTripMs": 70,
+        "goldAction": "keep",
+        "action": "keep"
+      },
+      {
+        "id": "unr-11",
+        "domain": "ops",
+        "difficulty": "hard",
+        "gold": "unrelated",
+        "pred": "unrelated",
+        "confidence": 0.92,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 102,
+        "roundTripMs": 111,
+        "goldAction": "keep",
+        "action": "keep"
+      },
+      {
+        "id": "unr-12",
+        "domain": "legal",
+        "difficulty": "hard",
+        "gold": "unrelated",
+        "pred": "unrelated",
+        "confidence": 0.7,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 66,
+        "roundTripMs": 71,
+        "goldAction": "keep",
+        "action": "keep"
+      },
+      {
+        "id": "unr-13",
+        "domain": "preferences",
+        "difficulty": "easy",
+        "gold": "unrelated",
+        "pred": "unrelated",
+        "confidence": 1,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 68,
+        "roundTripMs": 73,
+        "goldAction": "keep",
+        "action": "keep"
+      },
+      {
+        "id": "unr-14",
+        "domain": "research",
+        "difficulty": "hard",
+        "gold": "unrelated",
+        "pred": "unrelated",
+        "confidence": 0.96,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 225,
+        "roundTripMs": 244,
+        "goldAction": "keep",
+        "action": "keep"
+      },
+      {
+        "id": "unr-15",
+        "domain": "code",
+        "difficulty": "hard",
+        "gold": "unrelated",
+        "pred": "unrelated",
+        "confidence": 1,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 51,
+        "roundTripMs": 58,
+        "goldAction": "keep",
+        "action": "keep"
+      },
+      {
+        "id": "unr-16",
+        "domain": "ops",
+        "difficulty": "hard",
+        "gold": "unrelated",
+        "pred": "unrelated",
+        "confidence": 1,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 53,
+        "roundTripMs": 58,
+        "goldAction": "keep",
+        "action": "keep"
+      },
+      {
+        "id": "unr-17",
+        "domain": "legal",
+        "difficulty": "hard",
+        "gold": "unrelated",
+        "pred": "unrelated",
+        "confidence": 0.8,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 166,
+        "roundTripMs": 182,
+        "goldAction": "keep",
+        "action": "keep"
+      },
+      {
+        "id": "unr-18",
+        "domain": "code",
+        "difficulty": "easy",
+        "gold": "unrelated",
+        "pred": "unrelated",
+        "confidence": 1,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 129,
+        "roundTripMs": 147,
+        "goldAction": "keep",
+        "action": "keep"
+      },
+      {
+        "id": "unr-19",
+        "domain": "preferences",
+        "difficulty": "hard",
+        "gold": "unrelated",
+        "pred": "refines",
+        "confidence": 0.5,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 130,
+        "roundTripMs": 147,
+        "goldAction": "keep",
+        "action": "keep"
+      },
+      {
+        "id": "unr-20",
+        "domain": "research",
+        "difficulty": "hard",
+        "gold": "unrelated",
+        "pred": "unrelated",
+        "confidence": 1,
+        "judge": "systemone:jev-latest",
+        "fallback": null,
+        "judgeMs": 87,
+        "roundTripMs": 109,
+        "goldAction": "keep",
+        "action": "keep"
+      }
+    ]
+  },
+  "tasks": {
+    "summary": {
+      "n": 12,
+      "passed": 12,
+      "checks": 47,
+      "checksPassed": 47,
+      "bySkill": {
+        "dedupe": "2/2",
+        "conflict": "2/2",
+        "supersede": "4/4",
+        "refine": "2/2",
+        "unrelated": "1/1",
+        "mixed": "1/1"
+      }
+    },
+    "results": [
+      {
+        "id": "T01",
+        "name": "Second agent corroborates a fact",
+        "skill": "dedupe",
+        "passed": true,
+        "checks": [
+          {
+            "name": "entries = 1",
+            "ok": true,
+            "got": 1
+          },
+          {
+            "name": "m2 merged into m1",
+            "ok": true,
+            "got": "n-1"
+          },
+          {
+            "name": "m1 is active",
+            "ok": true,
+            "got": "active"
+          },
+          {
+            "name": "m1 has 2 sources",
+            "ok": true,
+            "got": 2
+          },
+          {
+            "name": "m1 has 1 corroborations",
+            "ok": true,
+            "got": 1
+          }
+        ]
+      },
+      {
+        "id": "T02",
+        "name": "Paraphrased duplicate with little word overlap",
+        "skill": "dedupe",
+        "passed": true,
+        "checks": [
+          {
+            "name": "entries = 1",
+            "ok": true,
+            "got": 1
+          },
+          {
+            "name": "m2 merged into m1",
+            "ok": true,
+            "got": "n-1"
+          },
+          {
+            "name": "m1 has 1 corroborations",
+            "ok": true,
+            "got": 1
+          }
+        ]
+      },
+      {
+        "id": "T03",
+        "name": "Two agents disagree",
+        "skill": "conflict",
+        "passed": true,
+        "checks": [
+          {
+            "name": "entries = 2",
+            "ok": true,
+            "got": 2
+          },
+          {
+            "name": "m1 is contested",
+            "ok": true,
+            "got": "contested"
+          },
+          {
+            "name": "m2 is contested",
+            "ok": true,
+            "got": "contested"
+          },
+          {
+            "name": "1 open conflicts",
+            "ok": true,
+            "got": 1
+          }
+        ]
+      },
+      {
+        "id": "T04",
+        "name": "A sourced change supersedes the old fact",
+        "skill": "supersede",
+        "passed": true,
+        "checks": [
+          {
+            "name": "entries = 2",
+            "ok": true,
+            "got": 2
+          },
+          {
+            "name": "m1 is superseded",
+            "ok": true,
+            "got": "superseded"
+          },
+          {
+            "name": "m2 is active",
+            "ok": true,
+            "got": "active"
+          },
+          {
+            "name": "recall \"which Node version does CI need\" → m2",
+            "ok": true,
+            "got": "m2"
+          }
+        ]
+      },
+      {
+        "id": "T05",
+        "name": "An unsourced claim cannot retire a sourced memory",
+        "skill": "supersede",
+        "passed": true,
+        "checks": [
+          {
+            "name": "entries = 2",
+            "ok": true,
+            "got": 2
+          },
+          {
+            "name": "m1 is contested",
+            "ok": true,
+            "got": "contested"
+          },
+          {
+            "name": "m2 is contested",
+            "ok": true,
+            "got": "contested"
+          },
+          {
+            "name": "m1 is not superseded",
+            "ok": true,
+            "got": "contested"
+          },
+          {
+            "name": "1 open conflicts",
+            "ok": true,
+            "got": 1
+          }
+        ]
+      },
+      {
+        "id": "T06",
+        "name": "A refinement keeps both memories",
+        "skill": "refine",
+        "passed": true,
+        "checks": [
+          {
+            "name": "entries = 2",
+            "ok": true,
+            "got": 2
+          },
+          {
+            "name": "m1 is active",
+            "ok": true,
+            "got": "active"
+          },
+          {
+            "name": "m2 is active",
+            "ok": true,
+            "got": "active"
+          },
+          {
+            "name": "0 open conflicts",
+            "ok": true,
+            "got": 0
+          }
+        ]
+      },
+      {
+        "id": "T07",
+        "name": "Look-alike but unrelated facts stay separate",
+        "skill": "unrelated",
+        "passed": true,
+        "checks": [
+          {
+            "name": "entries = 2",
+            "ok": true,
+            "got": 2
+          },
+          {
+            "name": "m1 is active",
+            "ok": true,
+            "got": "active"
+          },
+          {
+            "name": "m2 is active",
+            "ok": true,
+            "got": "active"
+          },
+          {
+            "name": "0 open conflicts",
+            "ok": true,
+            "got": 0
+          }
+        ]
+      },
+      {
+        "id": "T08",
+        "name": "An agent updates its own memory",
+        "skill": "supersede",
+        "passed": true,
+        "checks": [
+          {
+            "name": "entries = 2",
+            "ok": true,
+            "got": 2
+          },
+          {
+            "name": "m1 is superseded",
+            "ok": true,
+            "got": "superseded"
+          },
+          {
+            "name": "m2 is active",
+            "ok": true,
+            "got": "active"
+          }
+        ]
+      },
+      {
+        "id": "T09",
+        "name": "An exception is not a contradiction",
+        "skill": "refine",
+        "passed": true,
+        "checks": [
+          {
+            "name": "entries = 2",
+            "ok": true,
+            "got": 2
+          },
+          {
+            "name": "m1 is active",
+            "ok": true,
+            "got": "active"
+          },
+          {
+            "name": "m2 is active",
+            "ok": true,
+            "got": "active"
+          },
+          {
+            "name": "0 open conflicts",
+            "ok": true,
+            "got": 0
+          }
+        ]
+      },
+      {
+        "id": "T10",
+        "name": "A numeric contradiction with no negation",
+        "skill": "conflict",
+        "passed": true,
+        "checks": [
+          {
+            "name": "entries = 2",
+            "ok": true,
+            "got": 2
+          },
+          {
+            "name": "m1 is contested",
+            "ok": true,
+            "got": "contested"
+          },
+          {
+            "name": "m2 is contested",
+            "ok": true,
+            "got": "contested"
+          },
+          {
+            "name": "1 open conflicts",
+            "ok": true,
+            "got": 1
+          }
+        ]
+      },
+      {
+        "id": "T11",
+        "name": "Three agents: corroboration, then a contradiction",
+        "skill": "mixed",
+        "passed": true,
+        "checks": [
+          {
+            "name": "entries = 2",
+            "ok": true,
+            "got": 2
+          },
+          {
+            "name": "m2 merged into m1",
+            "ok": true,
+            "got": "n-1"
+          },
+          {
+            "name": "m1 is contested",
+            "ok": true,
+            "got": "contested"
+          },
+          {
+            "name": "m3 is contested",
+            "ok": true,
+            "got": "contested"
+          },
+          {
+            "name": "1 open conflicts",
+            "ok": true,
+            "got": 1
+          }
+        ]
+      },
+      {
+        "id": "T12",
+        "name": "Recall prefers the current fact after a change",
+        "skill": "supersede",
+        "passed": true,
+        "checks": [
+          {
+            "name": "m1 is superseded",
+            "ok": true,
+            "got": "superseded"
+          },
+          {
+            "name": "recall \"who is opposing counsel in the Northwind dispute\" → m2",
+            "ok": true,
+            "got": "m2"
+          }
+        ]
+      }
+    ]
+  }
+}
