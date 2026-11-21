@@ -47,6 +47,26 @@ export interface Entry {
   superseded_by?: string | null;
   // Set on the value returned by remember() when the write was merged into an existing entry.
   deduped?: { into: string; judge: string; confidence: number } | null;
+  // Open "the judge wasn't sure" notes involving this memory, visible to every agent that recalls it.
+  unsure?: UnsureNote[];
+}
+
+export interface Reading {
+  relation: string;
+  confidence: number;
+  judge: string;
+}
+
+// A pair the judge couldn't call confidently. Trust took no action; the agent decides with memory_relate.
+export interface UnsureNote {
+  id: string;
+  entry: string; // the newer memory
+  with: string; // the existing memory it was compared with
+  with_title?: string;
+  first: Reading;
+  second: Reading | null;
+  status: "open" | "decided";
+  decision?: string | null;
 }
 
 export interface Corroboration {

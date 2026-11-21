@@ -58,6 +58,7 @@ Origin is attached by the server from the session. Agents can add sources but ca
 | GET / POST | `conflicts/:scope` / `conflicts/:id` | List conflicts, or resolve one: `keep_a`, `keep_b`, `keep_both`, `retract_both` |
 | GET | `verify/:scope/:id` | Check a memory's signature over its origin and source versions |
 | GET | `export/:scope` | The scope as an OKF-style bundle: one Markdown file per memory, plus `log.md` and `index.md` |
+| POST | `relate` | The agent's decision on two memories: `{ session, scope, entry, other, relation, note }` |
 | GET | `judge-config` | The judge in use and the bars it must clear |
 | GET | `relations/:scope` | Every judgment made on writes: relation, confidence, judge, and what Trust did |
 | POST | `judge` | Judge `{ newer, older[] }` without storing anything (used by `eval/`) |
@@ -85,6 +86,8 @@ Pick the judge with `TRUST_JUDGE`:
 | `systemone` | Any `/v1/systemone` endpoint at `TRUST_JUDGE_URL`: a local Kev on Ollama or llama.cpp, hosted Jev, OpenRouter, LiteLLM. Model name in `TRUST_JUDGE_MODEL`; key, if needed, via `wrangler secret put TRUST_JUDGE_KEY` |
 | `heuristic` | Word overlap, negation, figures and change words. No network |
 
+**Unsure judgments go to the agent.** A judgment under 0.55 confidence (`TRUST_JUDGE_UNSURE_BELOW`), or one that would act but doesn't clear its bar, changes nothing. Instead, `memory_remember` returns an `unsure` note naming the other memory and the judge's reading. If a second model is configured (`TRUST_JUDGE_SECOND`, `TRUST_JUDGE_SECOND_MODEL`, and `TRUST_JUDGE_SECOND_URL`/`_KEY` for an endpoint), its reading is included too. The second opinion never acts on its own, because it can be as confidently wrong as the first. The agent checks the evidence and records its decision with `memory_relate`, which applies the same rules as a confident judge. Open notes show on the memory for every agent that recalls it until someone decides. On the Jev eval runs, 8 of 160 writes would have produced a note, and they covered all 6 of the misses that mattered.
+
 A model call that fails or takes longer than `TRUST_JUDGE_TIMEOUT_MS` (1,500 ms for Workers AI, 5,000 ms for a URL) falls back to the heuristic, and the judgment records why. A slow model never blocks a write. With Jev, memory text leaves Cloudflare; with Clef on Workers AI or a local Kev, it doesn't.
 
 `eval/` has 160 hand-labeled pairs (a core set and a hard set) and 12 scenario tasks for comparing judges and setting bars. So far: Jev scores 98% on the core set and passes every task; the heuristic scores 58% (core) and 48% (hard) with no wrong merges.
@@ -93,7 +96,7 @@ A model call that fails or takes longer than `TRUST_JUDGE_TIMEOUT_MS` (1,500 ms 
 
 Agents connect to `/mcp/:demo/:session` (MCP over streamable HTTP, JSON responses). Tools: `memory_recall`, `memory_remember`, `memory_retract`, `memory_why`, `memory_impact`. Calls go through the same authorization as the HTTP API, so an agent can't reach another matter over MCP either. In the demo the session in the URL is the identity; production needs a bearer token per agent.
 
-## Guarantees the tests check (`npm test`, 27 checks)
+## Guarantees the tests check (`npm test`, 30 checks)
 
 - Origin comes from the session; entries without sources are capped at `unverified`.
 - No cross-matter reads or writes, over HTTP or MCP, and refusals leak nothing.
@@ -107,6 +110,7 @@ Agents connect to `/mcp/:demo/:session` (MCP over streamable HTTP, JSON response
 - A duplicate write becomes corroboration (origin and sources kept, entry re-signed); a write that adds a figure is never merged.
 - A sourced change supersedes the old memory and recall ranks the new one first; an unsourced write can't retire a sourced memory.
 - Every judgment is logged with the judge that made it.
+- An unsure judgment takes no action and returns a note to the agent; the agent's `relate` decision is applied with the same rules and closes the note.
 
 ## Demo limits
 

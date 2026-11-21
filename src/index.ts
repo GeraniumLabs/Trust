@@ -216,6 +216,19 @@ const handler = {
           return json(await reg.addWall(body.supervisor, body.scope, body.reason ?? "conflict"));
         }
 
+        // The agent's decision on a pair: { session, scope, entry, other, relation, note }.
+        case "relate": {
+          const auth = await reg.authorize(body.session, body.scope, "write");
+          if (!auth.ok) return fail(auth.reason!, 403);
+          try {
+            const out = await scopeStub(body.scope).relate(body.entry, body.other, body.relation, auth.session.agent, body.note ?? "");
+            await reg.logEvent(auth.session.agent, "relate", body.scope, body.entry, `${body.relation} ${body.other}: ${out.action}`);
+            return json(out);
+          } catch (err) {
+            return fail((err as Error).message, 400);
+          }
+        }
+
         case "retract": {
           const auth = await reg.authorize(body.session, body.scope, "write");
           if (!auth.ok) return fail(auth.reason!, 403);
@@ -281,7 +294,7 @@ const MCP_TOOLS = [
   },
   {
     name: "memory_remember",
-    description: "Store a learning with the sources it was drawn from. Origin is recorded automatically. Memories without sources are stored as unverified.",
+    description: "Store a learning with the sources it was drawn from. Origin is recorded automatically. Memories without sources are stored as unverified. If the result has `unsure` notes, the memory judge couldn't tell how this memory relates to an existing one; each note gives its reading (and a second model's, if configured). Check the evidence and record your decision with memory_relate.",
     inputSchema: {
       type: "object",
       properties: {
@@ -293,6 +306,20 @@ const MCP_TOOLS = [
         step: { type: "number" },
       },
       required: ["title", "body"],
+    },
+  },
+  {
+    name: "memory_relate",
+    description: "Record your decision on how two memories in this scope relate, usually after an `unsure` note. contradicts opens a review; supersedes retires the other memory if yours has at least its trust (otherwise opens a review); duplicate folds your memory into the other as corroboration; refines and unrelated are logged.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        entry: { type: "string", description: "The newer memory (usually yours)" },
+        other: { type: "string", description: "The existing memory" },
+        relation: { type: "string", enum: ["duplicate", "refines", "supersedes", "contradicts", "unrelated"] },
+        note: { type: "string", description: "What you checked and why" },
+      },
+      required: ["entry", "other", "relation"],
     },
   },
   { name: "memory_retract", description: "Retract one of this scope's memories, with a reason. It stays in history.", inputSchema: { type: "object", properties: { entry: { type: "string" }, reason: { type: "string" } }, required: ["entry", "reason"] } },
@@ -332,6 +359,7 @@ async function mcp(req: Request, env: Env, url: URL): Promise<Response> {
   switch (msg.params?.name) {
     case "memory_recall": out = await call("POST", "/recall", { session, query: a.query, step: a.step ?? 0 }); break;
     case "memory_remember": out = await call("POST", "/remember", { session, scope: sess.scope, ...a }); break;
+    case "memory_relate": out = await call("POST", "/relate", { session, scope: sess.scope, entry: a.entry, other: a.other, relation: a.relation, note: a.note }); break;
     case "memory_retract": out = await call("POST", "/retract", { session, scope: sess.scope, entry: a.entry, reason: a.reason }); break;
     case "memory_why": out = await call("GET", `/why/${sess.scope}/${a.entry}`); break;
     case "memory_impact": out = await call("GET", `/impact/${sess.scope}/${a.entry}`); break;

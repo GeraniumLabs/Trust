@@ -126,5 +126,25 @@ await test("thresholds: overrides apply flat or per judge, and bad values are ig
   assert.equal(J.thresholdsFor("systemone:x", { TRUST_JUDGE_THRESHOLDS: "{not json" }).supersedes, 0.7);
 });
 
+await test("unsure: low confidence, or an action that didn't clear its bar", async () => {
+  const j = (relation, confidence, judge = "systemone:jev-latest") => ({ relation, confidence, judge });
+  assert.equal(J.isUnsure(j("refines", 0.5)), true, "h-con-01 shape: refines at 0.50");
+  assert.equal(J.isUnsure(j("supersedes", 0.52)), true, "h-sup-01 shape");
+  assert.equal(J.isUnsure(j("supersedes", 0.65)), true, "above 0.55 but under the 0.7 bar");
+  assert.equal(J.isUnsure(j("duplicate", 0.69)), true);
+  assert.equal(J.isUnsure(j("refines", 0.79)), false);
+  assert.equal(J.isUnsure(j("unrelated", 0.9)), false);
+  assert.equal(J.isUnsure(j("contradicts", 0.6)), false, "cleared its bar: acted on, not unsure");
+  assert.equal(J.isUnsure(j("refines", 0.6), { TRUST_JUDGE_UNSURE_BELOW: "0.7" }), true);
+});
+
+await test("second opinion: built from its own settings, never the heuristic", async () => {
+  const ai = { run: async () => ({}) };
+  assert.equal(J.makeSecondJudge({}), null);
+  assert.equal(J.makeSecondJudge({ TRUST_JUDGE_SECOND: "workers-ai", AI: ai, TRUST_JUDGE_SECOND_MODEL: "@cf/cloudflare/clef" }).name, "workers-ai:clef");
+  assert.equal(J.makeSecondJudge({ TRUST_JUDGE_SECOND: "systemone", TRUST_JUDGE_SECOND_URL: base, TRUST_JUDGE_SECOND_MODEL: "jev-latest" }).name, "systemone:jev-latest");
+  assert.equal(J.makeSecondJudge({ TRUST_JUDGE_SECOND: "workers-ai" }), null, "no binding: no second opinion");
+});
+
 server.close();
 console.log(`\n${passed} passed`);

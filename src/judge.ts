@@ -49,6 +49,15 @@ export interface JudgeEnv {
   // Override the bars a judgment must clear before Trust acts on it. JSON, either flat for all
   // model judges, {"duplicate":0.8}, or keyed by judge name, {"systemone:jev-latest":{"supersedes":0.75}}.
   TRUST_JUDGE_THRESHOLDS?: string;
+  // Judgments under this confidence (any relation), or under their relation's bar, are "unsure":
+  // Trust takes no action and tells the agent instead. Default 0.55.
+  TRUST_JUDGE_UNSURE_BELOW?: string;
+  // Optional second opinion on unsure pairs, reported to the agent alongside the first. It never
+  // acts on its own. Same shape as the main judge settings.
+  TRUST_JUDGE_SECOND?: string; // workers-ai | systemone
+  TRUST_JUDGE_SECOND_MODEL?: string;
+  TRUST_JUDGE_SECOND_URL?: string;
+  TRUST_JUDGE_SECOND_KEY?: string;
 }
 
 // ---------- thresholds ----------
@@ -254,6 +263,33 @@ export class SystemOneJudge extends ModelJudge {
     if (!r.ok) throw new Error(`HTTP ${r.status}: ${(await r.text().catch(() => "")).slice(0, 200)}`);
     return r.json();
   }
+}
+
+// ---------- unsure judgments ----------
+// Every miss that mattered in the Jev eval came in at 0.50-0.54. Below the bar Trust does nothing
+// automatically; the agent gets the judgment (and a second opinion, if configured) and decides.
+export function unsureBelow(env: Pick<JudgeEnv, "TRUST_JUDGE_UNSURE_BELOW"> = {}) {
+  const v = Number(env.TRUST_JUDGE_UNSURE_BELOW);
+  return Number.isFinite(v) && v > 0 && v <= 1 ? v : 0.55;
+}
+
+export function isUnsure(j: Judgment, env: JudgeEnv = {}) {
+  if (j.confidence < unsureBelow(env)) return true;
+  const bar = thresholdsFor(j.judge, env)[j.relation as keyof Thresholds];
+  return bar !== undefined && j.relation !== "refines" && j.confidence < bar; // would act, but didn't clear the bar
+}
+
+export function makeSecondJudge(env: JudgeEnv): Judge | null {
+  if (!env.TRUST_JUDGE_SECOND) return null;
+  const j = makeJudge({
+    AI: env.AI,
+    TRUST_JUDGE: env.TRUST_JUDGE_SECOND,
+    TRUST_JUDGE_MODEL: env.TRUST_JUDGE_SECOND_MODEL,
+    TRUST_JUDGE_URL: env.TRUST_JUDGE_SECOND_URL,
+    TRUST_JUDGE_KEY: env.TRUST_JUDGE_SECOND_KEY,
+    TRUST_JUDGE_TIMEOUT_MS: env.TRUST_JUDGE_TIMEOUT_MS,
+  });
+  return j.name === "heuristic" ? null : j; // a misconfigured second opinion is no second opinion
 }
 
 // auto: Clef-Flash when the Workers AI binding exists, otherwise a System One URL if set,

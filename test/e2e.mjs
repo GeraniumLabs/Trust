@@ -219,7 +219,7 @@ await test("agents use the same memory over MCP, with the same rules", async () 
   const init = await mcp("initialize", { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "e2e", version: "1" } });
   assert.equal(init.result.serverInfo.name, "trust");
   const tools = await mcp("tools/list", {});
-  assert.deepEqual(tools.result.tools.map((t) => t.name).sort(), ["memory_impact", "memory_recall", "memory_remember", "memory_retract", "memory_why"]);
+  assert.deepEqual(tools.result.tools.map((t) => t.name).sort(), ["memory_impact", "memory_recall", "memory_relate", "memory_remember", "memory_retract", "memory_why"]);
   const wrote = await mcp("tools/call", { name: "memory_remember", arguments: { title: "Webhook signatures", body: "Verify Contoso webhook signatures before deduping.", sources: [{ uri: "contoso/webhooks.ts", hash: "9a1b2c" }], step: 12 } });
   const entry = JSON.parse(wrote.result.content[0].text);
   assert.equal(entry.origin.session, s2.id, "origin from the MCP session");
@@ -299,6 +299,40 @@ await test("every judgment is logged with the judge that made it", async () => {
   assert.ok(rel.some((r) => r.action === "merged" && r.b === base.id));
   assert.ok(rel.some((r) => r.action === "superseded"));
   assert.ok(rel.every((r) => r.judge));
+});
+
+await test("an unsure judgment takes no action and tells the agent", async () => {
+  const a = (await remember(j1, "contoso", { title: "Contoso support tickets go to Zendesk", body: "Contoso support tickets are filed in Zendesk under the Contoso brand.", sources: [{ uri: "contoso/support.md", hash: "z1" }], step: 20 })).data;
+  const b = (await remember(j2, "contoso", { title: "Contoso support tickets are filed in Zendesk", body: "Contoso support tickets get filed in Zendesk under the Contoso brand.", step: 21 })).data;
+  assert.ok(!b.deduped, "not merged: the heuristic only merges identical text");
+  const note = b.unsure.find((u) => u.with === a.id);
+  assert.ok(note, "the agent is told");
+  assert.equal(note.first.relation, "duplicate");
+  assert.equal(note.second, null, "no second opinion configured");
+  const seen = (await get(`/why/contoso/${a.id}`)).data.entry.unsure;
+  assert.ok(seen.some((u) => u.id === note.id), "other agents see the open note on recall");
+  globalThis.__unsure = { a, b, note };
+});
+
+await test("the agent decides with relate: duplicate folds its memory in", async () => {
+  const { a, b, note } = globalThis.__unsure;
+  const out = (await post("/relate", { session: j2.id, scope: "contoso", entry: b.id, other: a.id, relation: "duplicate", note: "same rule, reworded" })).data;
+  assert.equal(out.action, "merged");
+  assert.equal(out.entry.status, "retracted");
+  assert.equal(out.other.corroborations.at(-1).session, j2.id);
+  assert.ok(!out.other.unsure.some((u) => u.id === note.id), "the note is closed");
+  const rel = (await get("/relations/contoso")).data;
+  assert.ok(rel.some((r) => r.judge === "agent:codex" && r.action === "merged"));
+});
+
+await test("relate: an agent's contradiction opens a review; bad input is refused", async () => {
+  const x = (await remember(j1, "contoso", { title: "Contoso SLA response time", body: "Contoso's SLA promises a first response within 4 business hours.", sources: [{ uri: "contoso/sla.pdf", hash: "s1" }], step: 22 })).data;
+  const y = (await remember(j2, "contoso", { title: "Contoso escalation contact", body: "Escalations for Contoso go to their IT director.", sources: [{ uri: "contoso/contacts.md", hash: "c1" }], step: 23 })).data;
+  const out = (await post("/relate", { session: j2.id, scope: "contoso", entry: y.id, other: x.id, relation: "contradicts", note: "test" })).data;
+  assert.equal(out.action, "conflict");
+  assert.equal(out.other.status, "contested");
+  const bad = await post("/relate", { session: j2.id, scope: "contoso", entry: y.id, other: y.id, relation: "duplicate" });
+  assert.equal(bad.status, 400);
 });
 
 await test("the judge endpoint scores a pair without storing it", async () => {

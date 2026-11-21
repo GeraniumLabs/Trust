@@ -33,6 +33,10 @@ A judgment only changes something when its confidence clears the bar for its rel
 
 Override them per deployment with `TRUST_JUDGE_THRESHOLDS`, flat (`{"duplicate":0.8}`) or per judge (`{"workers-ai:clef-flash":{"supersedes":0.8}}`). The scorer reads the bars from the Worker and ends with a calibration table: how each bar performs, and the lowest bar above which every prediction was right. Set each model's bars from its own run.
 
+## The unsure band
+
+Judgments under 0.55, or under their relation's bar, don't act. They come back to the agent as notes, with a second model's reading if one is configured, and the agent decides. The scorer lists them as "sent to the agent as unsure" and shows which costly misses the agent was told about. On the Jev runs that's 8 of 160 pairs, covering all 6 misses that mattered: 2 contradictions read as refines at 0.50-0.51, a supersede at 0.52, and three merges skipped at 0.54-0.69.
+
 ## Costly mistakes
 
 Accuracy treats every error alike, so the scorer also lists four errors by their effect:

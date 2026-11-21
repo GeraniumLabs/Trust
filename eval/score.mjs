@@ -69,7 +69,10 @@ async function scorePairs(file) {
     const t0 = Date.now();
     const [j] = await api("POST", `/demo/${demo}/judge`, { newer: { ...p.newer, sources: p.newer.sources }, older: [{ ...p.older, sources: p.older.sources }] });
     const acted = j.confidence >= barFor(j) ? ACTION[j.relation] : "keep";
-    return { id: p.id, domain: p.domain, difficulty: p.difficulty, trap: p.trap ?? null, gold: p.label, pred: j.relation, confidence: j.confidence, judge: j.judge, fallback: j.fallback ?? null, judgeMs: j.ms, roundTripMs: Date.now() - t0, goldAction: ACTION[p.label], action: acted };
+    const actionable = ["duplicate", "supersedes", "contradicts"].includes(j.relation);
+    // Same rule as the Scope: only judgments Trust didn't act on become notes for the agent.
+    const unsure = acted === "keep" && (j.confidence < BARS.unsureBelow || (actionable && j.confidence < barFor(j)));
+    return { id: p.id, domain: p.domain, difficulty: p.difficulty, trap: p.trap ?? null, gold: p.label, pred: j.relation, confidence: j.confidence, judge: j.judge, fallback: j.fallback ?? null, judgeMs: j.ms, roundTripMs: Date.now() - t0, goldAction: ACTION[p.label], action: acted, unsure };
   });
 
   const confusion = Object.fromEntries(LABELS.map((g) => [g, Object.fromEntries(LABELS.map((p) => [p, 0]))]));
@@ -96,6 +99,10 @@ async function scorePairs(file) {
     wrongfulSupersedes: results.filter((r) => r.action === "supersede" && r.gold !== "supersedes").map((r) => r.id), // retires a memory that was still true
     missedConflicts: results.filter((r) => r.gold === "contradicts" && r.action !== "conflict").map((r) => r.id), // a disagreement nobody reviews
     falseConflicts: results.filter((r) => r.action === "conflict" && r.gold !== "contradicts").map((r) => r.id), // review noise
+    // The unsure band: judgments Trust passes to the agent instead of acting on.
+    sentToAgent: results.filter((r) => r.unsure).map((r) => r.id),
+    sentToAgentUseful: results.filter((r) => r.unsure && (r.pred !== r.gold || r.action !== r.goldAction)).map((r) => r.id),
+    costlyMissesFlagged: results.filter((r) => r.unsure && r.action !== r.goldAction && r.goldAction !== "keep").map((r) => r.id),
     fallbacks: results.filter((r) => r.fallback).length,
     fallbackReasons: [...new Set(results.filter((r) => r.fallback).map((r) => r.fallback))].slice(0, 5),
     byDifficulty: by("difficulty"),
@@ -123,6 +130,8 @@ function printPairs({ summary: s, perLabel, confusion }, name) {
   console.log(`\n  confusion (rows gold, columns predicted)`);
   console.log(`  ${"".padEnd(12)} ${LABELS.map((l) => l.slice(0, 5).padStart(6)).join("")}`);
   for (const g of LABELS) console.log(`  ${g.padEnd(12)} ${LABELS.map((p) => String(confusion[g][p]).padStart(6)).join("")}`);
+  console.log(`\n  sent to the agent as unsure: ${s.sentToAgent.length} (${s.sentToAgentUseful.length} where the judge was wrong or didn't act)  ${s.sentToAgent.join(" ")}`);
+  if (s.costlyMissesFlagged.length) console.log(`    costly misses the agent was told about: ${s.costlyMissesFlagged.join(" ")}`);
   console.log(`\n  costly mistakes`);
   console.log(`    harmful merges      ${s.harmfulMerges.length}  ${s.harmfulMerges.join(" ")}`);
   console.log(`    wrongful supersedes ${s.wrongfulSupersedes.length}  ${s.wrongfulSupersedes.join(" ")}`);
@@ -242,7 +251,8 @@ if (!flag("--tasks-only")) {
   const demo = await newDemo();
   BARS = await api("GET", `/demo/${demo}/judge-config`);
   report.bars = BARS;
-  console.log(`Judge ${BARS.judge}; bars ${Object.entries(BARS.thresholds).map(([k, v]) => `${k} ${v}`).join(", ")}`);
+  BARS.unsureBelow ??= 0.55;
+  console.log(`Judge ${BARS.judge}${BARS.second ? ` (second opinion ${BARS.second})` : ""}; unsure below ${BARS.unsureBelow}; bars ${Object.entries(BARS.thresholds).map(([k, v]) => `${k} ${v}`).join(", ")}`);
   const sets = opt("--set") ? [opt("--set")] : Object.keys(SETS);
   const all = [];
   for (const name of sets) {

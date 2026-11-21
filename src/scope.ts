@@ -3,8 +3,8 @@
 // history, sources with content hashes, derivation links, and recall receipts.
 
 import { DurableObject } from "cloudflare:workers";
-import type { Corroboration, Derivation, Entry, RememberInput, SourceRef, Status, TrustTier } from "./types";
-import { makeJudge, thresholdsFor, type Judge, type JudgeEnv, type Judgment, type MemoryText, type Thresholds } from "./judge";
+import type { Corroboration, Derivation, Entry, RememberInput, SourceRef, Status, TrustTier, UnsureNote } from "./types";
+import { isUnsure, makeJudge, makeSecondJudge, RELATIONS, thresholdsFor, unsureBelow, type Judge, type JudgeEnv, type Judgment, type MemoryText, type Relation, type Thresholds } from "./judge";
 
 const TTL_MS = 60 * 60 * 1000;
 const TRUST_WEIGHT: Record<TrustTier, number> = { reviewed: 3, sourced: 2, unverified: 1 };
@@ -22,9 +22,15 @@ export class Scope extends DurableObject<ScopeEnv> {
   private ready = false;
   private fts = false;
   private judgeImpl: Judge | null = null;
+  private secondImpl: Judge | null | undefined;
 
   private get judge(): Judge {
     return (this.judgeImpl ??= makeJudge(this.env));
+  }
+
+  private get second(): Judge | null {
+    if (this.secondImpl === undefined) this.secondImpl = makeSecondJudge(this.env);
+    return this.secondImpl;
   }
 
   private init() {
@@ -46,6 +52,8 @@ export class Scope extends DurableObject<ScopeEnv> {
     sql.exec(`CREATE TABLE IF NOT EXISTS relations (n INTEGER PRIMARY KEY AUTOINCREMENT, a TEXT, b TEXT, relation TEXT, confidence REAL, judge TEXT, fallback TEXT, ms INTEGER, action TEXT, at INTEGER)`);
     // A write judged to duplicate an existing entry: its origin and sources, kept on that entry.
     sql.exec(`CREATE TABLE IF NOT EXISTS corroborations (n INTEGER PRIMARY KEY AUTOINCREMENT, entry TEXT, agent TEXT, session TEXT, supervisor TEXT, step INTEGER, sources TEXT, judge TEXT, confidence REAL, at INTEGER)`);
+    // Pairs the judge wasn't sure about. No action was taken; the agent was told and decides.
+    sql.exec(`CREATE TABLE IF NOT EXISTS unsure (id TEXT PRIMARY KEY, entry TEXT, other TEXT, first_rel TEXT, first_conf REAL, first_judge TEXT, second_rel TEXT, second_conf REAL, second_judge TEXT, status TEXT, decided_by TEXT, decision TEXT, at INTEGER)`);
     sql.exec(`CREATE INDEX IF NOT EXISTS receipts_entry ON receipts (entry)`);
     sql.exec(`CREATE INDEX IF NOT EXISTS entries_session ON entries (origin_session)`);
     try {
@@ -94,7 +102,9 @@ export class Scope extends DurableObject<ScopeEnv> {
     if (dup) {
       // The merged write has no id of its own; its judgments are logged against the entry it joined.
       this.recordRelations(`merged:${dup.c.id}`, pairs, new Map([[dup.c.id, "merged"]]));
-      return { ...(await this.corroborate(dup.c.id, input, trust, dup.j)), deduped: { into: dup.c.id, judge: dup.j.judge, confidence: dup.j.confidence } };
+      const merged = await this.corroborate(dup.c.id, input, trust, dup.j);
+      const notes = await this.noteUnsure(dup.c.id, input, pairs.filter((p) => p.c.id !== dup.c.id));
+      return { ...merged, deduped: { into: dup.c.id, judge: dup.j.judge, confidence: dup.j.confidence }, unsure: notes };
     }
 
     const id = `${prefix}-${this.next("entry")}`;
@@ -142,8 +152,81 @@ export class Scope extends DurableObject<ScopeEnv> {
       }
     }
     this.recordRelations(id, pairs, actions);
+    const notes = await this.noteUnsure(id, input, pairs.filter((p) => !actions.has(p.c.id)));
     await this.touchTtl();
-    return this.get(id)!;
+    return { ...this.get(id)!, unsure: notes };
+  }
+
+  // Unsure pairs: no action. Ask the second model, if one is configured, and record both readings
+  // for the agent. A second model can be as confidently wrong as the first, so it never acts.
+  private async noteUnsure(entry: string, input: RememberInput, pairs: { c: Entry; j: Judgment }[]): Promise<UnsureNote[]> {
+    const unsure = pairs.filter((p) => isUnsure(p.j, this.env)).slice(0, 3);
+    if (!unsure.length) return [];
+    let seconds: (Judgment | null)[] = unsure.map(() => null);
+    if (this.second) {
+      const out = await this.second.judge(this.asText({ title: input.title, body: input.body, sources: (input.sources ?? []).map((s) => s.uri) }), unsure.map((p) => this.asText(p.c)));
+      seconds = unsure.map((_, i) => (out[i] && !out[i].fallback ? out[i] : null)); // a failed second opinion is reported as none
+    }
+    const sql = this.ctx.storage.sql;
+    const now = Date.now();
+    return unsure.map((p, i) => {
+      const nid = `u-${this.next("unsure")}`;
+      const s2 = seconds[i];
+      sql.exec(`INSERT INTO unsure VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', NULL, NULL, ?)`,
+        nid, entry, p.c.id, p.j.relation, p.j.confidence, p.j.judge, s2?.relation ?? null, s2?.confidence ?? null, s2?.judge ?? null, now);
+      return {
+        id: nid, entry, with: p.c.id, with_title: p.c.title,
+        first: { relation: p.j.relation, confidence: p.j.confidence, judge: p.j.judge },
+        second: s2 ? { relation: s2.relation, confidence: s2.confidence, judge: s2.judge } : null,
+        status: "open" as const,
+      };
+    });
+  }
+
+  // The agent's decision on a pair, usually one the judge was unsure about. Applied with the same
+  // rules as a confident judge: a contradiction opens a review, a supersede respects trust tiers,
+  // a duplicate folds the newer memory into the older one as corroboration.
+  async relate(entry: string, other: string, relation: Relation, agent: string, note: string) {
+    this.init();
+    if (!RELATIONS.includes(relation)) throw new Error(`relation must be one of ${RELATIONS.join(", ")}`);
+    if (entry === other) throw new Error("a memory can't relate to itself");
+    const a = this.get(entry);
+    const b = this.get(other);
+    if (!a || !b) throw new Error("both memories must exist in this scope");
+    const by = `agent:${agent}`;
+    const why = `${agent} judged ${relation}${note ? `: ${note}` : ""}`;
+    let action = "logged";
+    if (relation === "contradicts") {
+      this.openConflict(other, entry, why);
+      action = "conflict";
+    } else if (relation === "supersedes") {
+      if (TRUST_RANK[a.trust] >= TRUST_RANK[b.trust]) {
+        this.setStatus([other], "superseded", by, `superseded by ${entry} (${why})`);
+        action = "superseded";
+      } else {
+        this.openConflict(other, entry, `claims to supersede a ${b.trust} memory but is only ${a.trust} (${why})`);
+        action = "conflict";
+      }
+    } else if (relation === "duplicate") {
+      await this.corroborate(other, { title: a.title, body: a.body, sources: a.sources.map((s) => ({ uri: s.uri, hash: s.hash ?? undefined, kind: s.kind })), origin: a.origin, kind: a.kind } as RememberInput,
+        a.trust, { relation, confidence: 1, probabilities: {} as Judgment["probabilities"], judge: by, ms: 0 });
+      this.setStatus([entry], "retracted", by, `merged into ${other} as a duplicate (${why})`);
+      action = "merged";
+    }
+    const sql = this.ctx.storage.sql;
+    sql.exec(`INSERT INTO relations (a, b, relation, confidence, judge, fallback, ms, action, at) VALUES (?, ?, ?, 1, ?, NULL, 0, ?, ?)`, entry, other, relation, by, action, Date.now());
+    sql.exec(`UPDATE unsure SET status = 'decided', decided_by = ?, decision = ? WHERE status = 'open' AND ((entry = ? AND other = ?) OR (entry = ? AND other = ?))`, by, relation, entry, other, other, entry);
+    await this.touchTtl();
+    return { action, entry: this.get(entry), other: this.get(other) };
+  }
+
+  private unsureFor(id: string): UnsureNote[] {
+    return (this.ctx.storage.sql.exec(`SELECT * FROM unsure WHERE status = 'open' AND (entry = ? OR other = ?) ORDER BY at`, id, id).toArray() as any[]).map((u) => ({
+      id: u.id, entry: u.entry, with: u.other,
+      first: { relation: u.first_rel, confidence: u.first_conf, judge: u.first_judge },
+      second: u.second_rel ? { relation: u.second_rel, confidence: u.second_conf, judge: u.second_judge } : null,
+      status: u.status, decision: u.decision,
+    }));
   }
 
   // Bars come from the judge that actually produced the judgment, so a model call that fell
@@ -154,7 +237,7 @@ export class Scope extends DurableObject<ScopeEnv> {
 
   async judgeConfig() {
     const judge = this.judge.name;
-    return { judge, thresholds: thresholdsFor(judge, this.env), fallbackThresholds: thresholdsFor("heuristic") };
+    return { judge, thresholds: thresholdsFor(judge, this.env), fallbackThresholds: thresholdsFor("heuristic"), unsureBelow: unsureBelow(this.env), second: this.second?.name ?? null };
   }
 
   // Nearest neighbours of a new write: same kind, still live, not its own parents.
@@ -473,6 +556,7 @@ export class Scope extends DurableObject<ScopeEnv> {
       corroborations: (sql.exec(`SELECT * FROM corroborations WHERE entry = ? ORDER BY n`, id).toArray() as any[]).map(
         (c): Corroboration => ({ agent: c.agent, session: c.session, supervisor: c.supervisor, step: c.step, sources: JSON.parse(c.sources), judge: c.judge, confidence: c.confidence, at: c.at }),
       ),
+      unsure: this.unsureFor(id),
       superseded_by: e.status === "superseded"
         ? ((sql.exec(`SELECT a FROM relations WHERE b = ? AND action = 'superseded' ORDER BY n DESC LIMIT 1`, id).toArray()[0] as any)?.a ?? null)
         : null,
