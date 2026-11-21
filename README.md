@@ -28,7 +28,7 @@ npm run deploy       # your own workers.dev URL, shareable as-is
 
 | Part | Role |
 | --- | --- |
-| Worker (`src/index.ts`) | API router, serves the demo page from `public/` |
+| Worker (`src/index.ts`) | API and MCP router. Static files come from `public/`: the landing page at `/`, the interactive demo at `/demo/` |
 | Registry DO (`src/registry.ts`) | One per demo: scopes, sessions, walls, merged changes, audit trail. Authorizes every read and write |
 | Scope DO (`src/scope.ts`) | One per scope: SQLite tables for entries, append-only versions, sources, derivation links, recall receipts, promotion reviews, judge relations, corroborations |
 | Judge (`src/judge.ts`) | Decides how a new memory relates to existing ones. Speaks the System One API, so Clef, Clef-Flash, Kev and Jev are interchangeable |

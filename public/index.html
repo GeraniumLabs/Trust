@@ -1,107 +1,420 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Trust: agent memory that knows where every memory came from</title>
-  <link rel="stylesheet" href="/style.css" />
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 16 16%27%3E%3Ccircle cx=%278%27 cy=%278%27 r=%276%27 fill=%27%23534ab7%27/%3E%3C/svg%3E" />
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trust: agent memory that knows where every memory came from</title>
+<meta name="description" content="Trust is open-source, provenance-first memory for AI agents on Cloudflare. Every memory records its origin and sources, every recall leaves a receipt, and anything a bad source taught can be removed.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 16 16%27%3E%3Ccircle cx=%278%27 cy=%278%27 r=%276%27 fill=%27%23175d63%27/%3E%3C/svg%3E">
+<style>
+:root {
+  --paper: #f2f4f3;
+  --card: #fbfcfb;
+  --ink: #17242b;
+  --muted: #4c5a61;
+  --rule: #c9d1d0;
+  --thread: #175d63;      /* provenance: the line back to a source */
+  --thread-soft: #dcebea;
+  --seal: #4b3f9e;        /* reviewed tier */
+  --cut: #a8321f;         /* quarantine */
+  --cut-soft: #f6e3df;
+  --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", "URW Palladio L", Georgia, serif;
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #162127;
+    --card: #1d2a31;
+    --ink: #e6ecea;
+    --muted: #a9b6b8;
+    --rule: #34454d;
+    --thread: #6cc3c2;
+    --thread-soft: #1f3d40;
+    --seal: #aea6f0;
+    --cut: #f0907d;
+    --cut-soft: #44241f;
+  }
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--paper); color: var(--ink); font: 17px/1.6 var(--sans); }
+a { color: var(--thread); text-underline-offset: .18em; }
+a:hover { text-decoration-thickness: 2px; }
+:focus-visible { outline: 3px solid var(--thread); outline-offset: 3px; border-radius: 3px; }
+.skip { position: absolute; left: -999px; top: 8px; background: var(--card); padding: 8px 12px; }
+.skip:focus { left: 8px; }
+
+.wrap { max-width: 1120px; margin: 0 auto; padding-inline: 28px; }
+.prose > * { max-width: 40rem; }
+
+/* Top bar */
+.bar { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; padding-block: 22px; }
+.mark { font: 600 22px/1 var(--serif); color: var(--ink); text-decoration: none; letter-spacing: -.01em; }
+.mark span { display: inline-block; width: .55em; height: .55em; border-radius: 50%; background: var(--thread); margin-right: .35em; vertical-align: .02em; }
+.bar nav { display: flex; gap: 20px; font-size: 15px; }
+.bar nav a { color: var(--muted); text-decoration: none; }
+.bar nav a:hover { color: var(--ink); text-decoration: underline; }
+
+/* Hero */
+.hero { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 56px; align-items: center; padding-block: 48px 88px; }
+h1, h2, h3 { font-family: var(--serif); font-weight: 600; letter-spacing: -.012em; }
+h1 { font-size: clamp(2.3rem, 5.2vw, 3.9rem); line-height: 1.06; margin: 0 0 24px; }
+.lede { font-size: 1.2rem; color: var(--muted); margin: 0 0 32px; max-width: 34rem; }
+.ctas { display: flex; flex-wrap: wrap; gap: 12px; }
+.btn { display: inline-block; padding: 12px 20px; border-radius: 6px; font-weight: 600; font-size: 16px; text-decoration: none; border: 2px solid var(--ink); }
+.btn.primary { background: var(--ink); color: var(--paper); }
+.btn.primary:hover { background: var(--thread); border-color: var(--thread); color: #fff; }
+.btn.ghost { color: var(--ink); }
+.btn.ghost:hover { border-color: var(--thread); color: var(--thread); }
+.status { margin: 24px 0 0; font-size: 14.5px; color: var(--muted); }
+
+/* The record: the one loud element on the page */
+.record { position: relative; margin: 0; background: var(--card); border: 1px solid var(--rule); border-left: 6px solid var(--thread); border-radius: 4px 10px 10px 4px; padding: 22px 24px 20px; box-shadow: 0 1px 0 var(--rule), 0 18px 40px -28px rgba(23, 36, 43, .55); }
+.record::before { content: ""; position: absolute; top: 22px; left: -15px; width: 12px; height: 12px; border-radius: 50%; background: var(--paper); border: 2px solid var(--thread); }
+.record figcaption { font-size: 13.5px; color: var(--muted); margin: 0 0 12px; }
+.record .text { font: 1.18rem/1.45 var(--serif); margin: 0 0 18px; }
+.record dl { display: grid; grid-template-columns: 7.2em minmax(0, 1fr); gap: 6px 14px; margin: 0; font-size: 14.5px; }
+.record dt { color: var(--muted); }
+.record dd { margin: 0; min-width: 0; }
+.record code, .record .h { font-family: var(--mono); font-size: 13px; overflow-wrap: anywhere; }
+.record dd code { white-space: nowrap; }
+.record ul { list-style: none; margin: 0; padding: 0; }
+.record li { padding-left: 16px; position: relative; }
+.record li::before { content: ""; position: absolute; left: 0; top: .72em; width: 9px; border-top: 2px solid var(--thread); }
+.tier { display: inline-block; font-size: 13px; font-weight: 600; padding: 1px 9px; border-radius: 999px; background: var(--thread-soft); color: var(--thread); }
+.h { color: var(--muted); }
+
+/* Sections */
+section { padding-block: 72px; border-top: 1px solid var(--rule); }
+h2 { font-size: clamp(1.75rem, 3.4vw, 2.4rem); line-height: 1.15; margin: 0 0 18px; }
+h3 { font-size: 1.3rem; line-height: 1.25; margin: 0 0 8px; }
+p { margin: 0 0 16px; }
+.muted { color: var(--muted); }
+
+.features { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 40px 56px; margin-top: 40px; }
+.features article p { color: var(--muted); }
+.features article > h3 { padding-top: 14px; border-top: 2px solid var(--ink); }
+
+.diagram { margin: 48px 0 0; }
+.diagram .scroll { overflow-x: auto; }
+.diagram svg { display: block; width: 100%; min-width: 700px; height: auto; max-width: 980px; }
+.diagram figcaption { font-size: 14.5px; color: var(--muted); margin-top: 12px; max-width: 44rem; }
+.d-box { fill: var(--card); stroke: var(--rule); stroke-width: 1.5; }
+.d-src { stroke: var(--thread); }
+.d-cut { fill: var(--cut-soft); stroke: var(--cut); stroke-dasharray: 5 4; }
+.d-line { stroke: var(--thread); stroke-width: 2; fill: none; }
+.d-cutline { stroke: var(--cut); stroke-width: 2; fill: none; stroke-dasharray: 5 4; }
+.d-t { fill: var(--ink); font: 600 15px var(--sans); }
+.d-s { fill: var(--muted); font: 13px var(--sans); }
+.d-m { fill: var(--muted); font: 12px var(--mono); }
+.d-x { fill: var(--cut); font: 600 13px var(--sans); }
+.d-col { fill: var(--muted); font: 600 13px var(--sans); }
+
+.judge { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 56px; align-items: start; }
+.relations { margin: 0; border-top: 1px solid var(--rule); }
+.relations div { display: grid; grid-template-columns: 7.5em minmax(0, 1fr); gap: 14px; padding: 12px 0; border-bottom: 1px solid var(--rule); font-size: 15.5px; }
+.relations dt { font-family: var(--mono); font-size: 14px; color: var(--thread); padding-top: 2px; }
+.relations dd { margin: 0; color: var(--muted); }
+.unsure { margin-top: 28px; padding: 18px 20px; background: var(--card); border: 1px solid var(--rule); border-radius: 8px; }
+.unsure h3 { font-size: 1.12rem; }
+.unsure p:last-child { margin: 0; color: var(--muted); }
+
+.tablewrap { overflow-x: auto; margin: 28px 0 20px; }
+table { border-collapse: collapse; width: 100%; min-width: 620px; font-size: 15.5px; font-variant-numeric: tabular-nums; }
+caption { text-align: left; font-size: 14.5px; color: var(--muted); padding-bottom: 10px; }
+th, td { text-align: left; padding: 11px 14px 11px 0; border-bottom: 1px solid var(--rule); vertical-align: top; }
+thead th { font-weight: 600; font-size: 14px; color: var(--muted); border-bottom: 2px solid var(--ink); }
+tbody th { font-weight: 600; }
+tr.base td, tr.base th { color: var(--muted); }
+.caveats { margin: 0; padding-left: 1.2em; color: var(--muted); font-size: 15.5px; max-width: 44rem; }
+.caveats li { margin-bottom: 6px; }
+
+.two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 56px; }
+.two ul { padding-left: 1.2em; color: var(--muted); }
+.two li { margin-bottom: 8px; }
+.two li strong { color: var(--ink); }
+.aside { font-size: 15.5px; color: var(--muted); border-left: 3px solid var(--rule); padding-left: 16px; margin-top: 28px; max-width: 44rem; }
+
+ol.steps { list-style: none; counter-reset: s; padding: 0; margin: 28px 0 0; max-width: 46rem; }
+ol.steps li { counter-increment: s; display: grid; grid-template-columns: 2.2em minmax(0, 1fr); gap: 0 12px; margin-bottom: 22px; }
+ol.steps li::before { content: counter(s); font: 600 1.3rem/1.3 var(--serif); color: var(--thread); }
+ol.steps p { margin: 0 0 8px; }
+pre { margin: 0; padding: 14px 16px; background: var(--card); border: 1px solid var(--rule); border-radius: 6px; overflow-x: auto; font: 14px/1.55 var(--mono); }
+code { font-family: var(--mono); font-size: .9em; }
+pre .c { color: var(--muted); }
+
+footer { border-top: 1px solid var(--rule); padding-block: 36px 48px; font-size: 15px; color: var(--muted); }
+footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px 24px; }
+footer nav { display: flex; gap: 20px; }
+
+@media (max-width: 880px) {
+  .hero, .judge, .two { grid-template-columns: minmax(0, 1fr); gap: 40px; }
+  .hero { padding-block: 24px 64px; }
+  .features { grid-template-columns: minmax(0, 1fr); gap: 32px; }
+  section { padding-block: 56px; }
+}
+@media (max-width: 520px) {
+  body { font-size: 16px; }
+  .wrap { padding-inline: 18px; }
+  .bar nav a.opt { display: none; }
+  .record { padding: 18px 16px 16px; }
+  .record dl { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .record dd { margin-bottom: 8px; }
+  .relations div { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+}
+</style>
 </head>
 <body>
-  <header>
-    <h1>Trust</h1>
-    <p>Agent memory that knows where every memory came from. Two scripted agents work for two separate clients. Watch memories stay inside their matter, trace any memory to its sources and to the changes it influenced, and undo what a bad source taught.</p>
-  </header>
+<a class="skip" href="#main">Skip to content</a>
 
-  <main class="layout">
-    <section class="panel" aria-label="Demo steps">
-      <h2>The demo</h2>
+<header class="wrap bar">
+  <a class="mark" href="/"><span aria-hidden="true"></span>Trust</a>
+  <nav aria-label="Site">
+    <a class="opt" href="#how">How it works</a>
+    <a class="opt" href="#eval">Eval</a>
+    <a href="/demo/">Demo</a>
+    <a href="https://github.com/GeraniumLabs/Trust">GitHub</a>
+  </nav>
+</header>
 
-      <div class="moment" id="m1">
-        <h3><span class="n">1</span>Two agents, two matters</h3>
-        <p>Agent 1 works for Northwind, Agent 2 for Contoso. Each writes memories with their sources. Origin is attached by the server, not claimed by the agent.</p>
-        <div class="row"><button class="primary" id="b1">Start the agents</button></div>
+<main id="main">
+  <div class="wrap hero">
+    <div>
+      <h1>Agent memory that knows where every memory came from.</h1>
+      <p class="lede">Trust is memory for AI coding agents and other agents. Every memory carries its origin and its sources. Every recall leaves a receipt. When a source turns out to be wrong, everything it taught comes back out.</p>
+      <div class="ctas">
+        <a class="btn primary" href="/demo/">Try the live demo</a>
+        <a class="btn ghost" href="https://github.com/GeraniumLabs/Trust">View on GitHub</a>
+      </div>
+      <p class="status">Open source, MIT. Early: this is v1. Runs on Cloudflare Workers and Durable Objects with SQLite.</p>
+    </div>
+
+    <figure class="record" aria-labelledby="rec-cap">
+      <figcaption id="rec-cap">An example memory, as Trust stores it (illustrative)</figcaption>
+      <p class="text">Round currency with the shared money helpers in <code>src/lib/money.ts</code>, never inline.</p>
+      <dl>
+        <dt>Tier</dt>
+        <dd><span class="tier">sourced</span></dd>
+        <dt>Origin</dt>
+        <dd>agent <code>billing-agent</code>, session <code>s-4f2a</code>, step 7, supervised by <code>lead-dev</code></dd>
+        <dt>Sources</dt>
+        <dd><ul>
+          <li><code>src/lib/money.ts</code> <span class="h">sha256:9c1e…a47b</span></li>
+          <li><code>docs/billing.md</code> <span class="h">sha256:41d0…7e2c</span></li>
+        </ul></dd>
+        <dt>Derived from</dt>
+        <dd>memory <code>n-1</code></dd>
+        <dt>Recalled by</dt>
+        <dd>2 sessions, 1 change merged after</dd>
+        <dt>Signature</dt>
+        <dd><span class="h">hmac over origin and source versions</span></dd>
+      </dl>
+    </figure>
+  </div>
+
+  <section aria-labelledby="problem">
+    <div class="wrap prose">
+      <h2 id="problem">Agents remember things nobody can trace.</h2>
+      <p>Give an agent memory and it starts writing down conclusions. Some come from the code. Some come from a stale doc, a flaky CI log, or another agent's guess. A week later, a different agent recalls one of them and acts on it.</p>
+      <p>Ask why it believes that, and there is no answer. Find out a source was wrong, and there is no way to know what it taught. One poisoned memory quietly steers every agent that comes after.</p>
+      <p>Trust treats where a memory came from as part of the memory.</p>
+    </div>
+  </section>
+
+  <section id="how" aria-labelledby="how-h">
+    <div class="wrap">
+      <div class="prose">
+        <h2 id="how-h">How it works</h2>
+        <p class="muted">Four ideas, all enforced by the server rather than left to the agent.</p>
       </div>
 
-      <div class="moment" id="m2">
-        <h3><span class="n">2</span>Try to cross the wall</h3>
-        <p>Agent 2 asks for Northwind's memory. The request is checked on every call, refused, and logged in Contoso's audit trail without revealing anything about Northwind.</p>
-        <div class="row"><button id="b2" disabled>Agent 2 reads Northwind</button></div>
+      <div class="features">
+        <article>
+          <h3>Provenance on every write</h3>
+          <p>Each memory records its origin (agent, session, supervisor, step), the exact sources it was drawn from with content hashes, and the memories it was derived from. The server attaches the origin from the session, so an agent can't claim to be someone else. A memory with no sources is still stored, but capped at the lowest tier. The tiers are unverified, sourced and reviewed.</p>
+        </article>
+        <article>
+          <h3>Recall receipts</h3>
+          <p>Every recall is logged. Trace a memory forward with <code>impact</code>: which sessions recalled it, and which changes merged after. Trace it backward with <code>why</code>: the chain through parent memories to the original sources.</p>
+        </article>
+        <article>
+          <h3>Remove by source, roll back a session</h3>
+          <p>If a source turns out to be poisoned or wrong, remove it. Everything it taught is quarantined, and so is everything built on that. You can do the same for a whole session. When a source changes, what it taught is flagged stale until someone re-checks it. Every memory is signed with an HMAC over its origin and source versions.</p>
+        </article>
+        <article>
+          <h3>A judge for every new memory</h3>
+          <p>Before a memory is stored, a model compares it with its nearest neighbours and decides how they relate. Duplicates become corroboration. Contradictions go to review. When the judge isn't sure, nothing happens automatically. <a href="#judge">More on the judge</a>.</p>
+        </article>
       </div>
 
-      <div class="moment" id="m3">
-        <h3><span class="n">3</span>Trace a memory</h3>
-        <p>Why does Agent 1 believe "use shared money helpers"? Walk back to its sources, and forward to the session and pull request it influenced. Or click any node.</p>
-        <div class="row"><button id="b3" disabled>Trace n-2</button></div>
-      </div>
+      <figure class="diagram" aria-labelledby="diag-cap">
+        <div class="scroll" tabindex="0" role="group" aria-label="Diagram, scrolls sideways on small screens"><svg viewBox="0 0 980 300" role="img" aria-labelledby="diag-title diag-desc">
+          <title id="diag-title">A memory traced from sources to a merged change</title>
+          <desc id="diag-desc">Two source files feed memory n-1, which feeds memory n-2. A session recalls n-2 and a change merges after. A third source, a CI note, feeds memory n-3, which is shown quarantined after that source is removed.</desc>
+          <text class="d-col" x="20" y="22">Sources</text>
+          <text class="d-col" x="270" y="22">Memories</text>
+          <text class="d-col" x="560" y="22">Recall receipts</text>
+          <text class="d-col" x="800" y="22">Changes</text>
 
-      <div class="moment" id="m4">
-        <h3><span class="n">4</span>Poison a source, then recover</h3>
-        <p>A CI note claims billing tests are flaky. Agent 1 learns from it, builds on it, and merges a change. Remove the source and everything it taught is quarantined, with the affected change listed.</p>
-        <div class="row"><button id="b4" disabled>Inject the bad note</button><button id="b4b" disabled>Remove the source</button></div>
-      </div>
+          <rect class="d-box d-src" x="20" y="40" width="190" height="56" rx="6"/>
+          <text class="d-t" x="34" y="64">money.ts</text>
+          <text class="d-m" x="34" y="84">sha256:9c1e…</text>
+          <rect class="d-box d-src" x="20" y="112" width="190" height="56" rx="6"/>
+          <text class="d-t" x="34" y="136">billing.md</text>
+          <text class="d-m" x="34" y="156">sha256:41d0…</text>
+          <rect class="d-box d-cut" x="20" y="214" width="190" height="56" rx="6"/>
+          <text class="d-t" x="34" y="238">ci-note.txt</text>
+          <text class="d-x" x="34" y="258">removed</text>
 
-      <div class="moment" id="m5">
-        <h3><span class="n">5</span>Promote across the wall</h3>
-        <p>A general technique from Northwind can help Contoso. It crosses only through review: client names and figures are stripped, a person approves, and Contoso sees it as advisory.</p>
-        <div class="row"><button id="b5" disabled>Propose promotion</button></div>
-        <div id="reviewBox"></div>
-      </div>
+          <rect class="d-box" x="270" y="40" width="200" height="56" rx="6"/>
+          <text class="d-t" x="284" y="64">n-1</text>
+          <text class="d-s" x="284" y="84">sourced</text>
+          <rect class="d-box" x="270" y="124" width="200" height="56" rx="6"/>
+          <text class="d-t" x="284" y="148">n-2</text>
+          <text class="d-s" x="284" y="168">sourced, derived from n-1</text>
+          <rect class="d-box d-cut" x="270" y="214" width="200" height="56" rx="6"/>
+          <text class="d-t" x="284" y="238">n-3</text>
+          <text class="d-x" x="284" y="258">quarantined</text>
 
-      <div class="moment" id="mD">
-        <h3><span class="n">6</span>Two sessions disagree</h3>
-        <p>A third agent on Northwind concludes the opposite of an existing memory. Both are marked contested and still recalled, flagged, until a person decides. The decision becomes part of history.</p>
-        <div class="row"><button id="bD" disabled>Agent 3 contradicts n-2</button></div>
-        <div id="conflictBox"></div>
-      </div>
+          <rect class="d-box" x="560" y="124" width="180" height="56" rx="6"/>
+          <text class="d-t" x="574" y="148">session s-91c0</text>
+          <text class="d-s" x="574" y="168">recalled n-2</text>
 
-      <div class="moment" id="mS">
-        <h3><span class="n">7</span>A source changes</h3>
-        <p>round.ts moves past the version the agents learned from. Everything drawn from it is flagged stale, with the merged change to re-check. Re-verify against the new version to clear it.</p>
-        <div class="row"><button id="bS" disabled>Change round.ts</button><button id="bS2" disabled>Re-verify n-1</button></div>
-      </div>
+          <rect class="d-box" x="800" y="124" width="160" height="56" rx="6"/>
+          <text class="d-t" x="814" y="148">change #42</text>
+          <text class="d-s" x="814" y="168">merged after recall</text>
 
-      <div class="moment" id="m6">
-        <h3><span class="n">8</span>A new wall, mid-session</h3>
-        <p>Agent 1's supervisor joins Contoso work. A wall goes up and Agent 1's live session is paused on its very next call.</p>
-        <div class="row"><button id="b6" disabled>Add the wall</button></div>
-      </div>
+          <path class="d-line" d="M210 68 H270"/>
+          <path class="d-line" d="M210 140 C240 140 240 152 270 152"/>
+          <path class="d-line" d="M370 96 V124"/>
+          <path class="d-line" d="M470 152 H560"/>
+          <path class="d-line" d="M740 152 H800"/>
+          <path class="d-cutline" d="M210 242 H270"/>
+        </svg></div>
+        <figcaption id="diag-cap">Read left to right for <code>impact</code>, right to left for <code>why</code>. Removing <code>ci-note.txt</code> quarantines n-3 and anything derived from it. Example data.</figcaption>
+      </figure>
+    </div>
+  </section>
 
-      <div class="moment">
-        <div class="row"><button id="bReset">Start over</button></div>
-        <p class="note">Each visit gets its own throwaway scopes that delete themselves after an hour.</p>
-        <p class="note" id="extras" hidden>Export: <a id="exportLink" href="#">Northwind memory as an OKF bundle</a><br>Connect your own agent over MCP as Agent 2: <code id="mcpUrl"></code><br>
-          <span id="mcpTokenWrap">with header <code>Authorization: Bearer</code> and <button id="mcpCopy" type="button">copy Agent 2's token</button></span></p>
+  <section id="judge" aria-labelledby="judge-h">
+    <div class="wrap judge">
+      <div>
+        <h2 id="judge-h">The memory judge</h2>
+        <p>Agents repeat themselves, refine each other, and sometimes disagree. On every write, Trust finds the closest existing memories and asks a judge model how the new one relates to each.</p>
+        <p class="muted">The judge speaks the System One API, so you can swap models. Run Clef-Flash on Workers AI and memory never leaves Cloudflare. Or point it at a local Kev model, or TypeSafe's Jev.</p>
+        <div class="unsure">
+          <h3>Unsure goes to the agent</h3>
+          <p>When the judge isn't confident, Trust takes no action. It tells the agent what it saw, with a second model's opinion if you've configured one. The agent checks the evidence and decides.</p>
+        </div>
       </div>
-    </section>
+      <dl class="relations" aria-label="Relations the judge can return">
+        <div><dt>duplicate</dt><dd>Merged as corroboration. The existing memory keeps the second agent's origin and sources too.</dd></div>
+        <div><dt>refines</dt><dd>Logged.</dd></div>
+        <div><dt>supersedes</dt><dd>The old memory steps aside. A lower-trust write can't retire a higher-trust memory; it opens a review instead.</dd></div>
+        <div><dt>contradicts</dt><dd>Both memories are marked contested and a review opens.</dd></div>
+        <div><dt>unrelated</dt><dd>Logged.</dd></div>
+      </dl>
+    </div>
+  </section>
 
-    <section class="panel" aria-label="Memory graph">
-      <h2>Memory graph <span id="demoId" style="font-weight:400;color:var(--faint)"></span></h2>
-      <div class="graphwrap"><svg id="graph" viewBox="0 0 900 420" role="img" aria-label="Memory graph: sources, memories, recalling sessions and merged changes for each matter"></svg></div>
-      <div id="graphEmpty" class="empty">Press <b>Start the agents</b> to begin.</div>
-      <div class="legend">
-        <span><i style="background:var(--nw-bg);border-color:var(--nw)"></i>Northwind</span>
-        <span><i style="background:var(--ct-bg);border-color:var(--ct)"></i>Contoso</span>
-        <span><i style="background:var(--pr-bg);border-color:var(--pr)"></i>Firm precedent</span>
-        <span><i style="border-style:dashed;border-color:var(--danger)"></i>Quarantined</span>
-        <span><i style="border-style:dashed;border-color:var(--stale)"></i>Stale</span>
-        <span><i style="border-style:dashed;border-color:var(--contest)"></i>Contested</span>
-        <span>Dashed line: advisory recall</span>
+  <section id="eval" aria-labelledby="eval-h">
+    <div class="wrap">
+      <div class="prose">
+        <h2 id="eval-h">How well the judge does</h2>
+        <p>Judges were scored on 160 hand-labeled memory pairs, split into a core set and a harder set, plus 12 scenario tasks, in November 2026. With per-model thresholds, none of the three models made a wrong merge, a wrong retirement or a wrong conflict.</p>
       </div>
-    </section>
+      <div class="tablewrap">
+        <table>
+          <caption>Judge eval, November 2026. Thresholds are each model's own.</caption>
+          <thead>
+            <tr>
+              <th scope="col">Judge</th>
+              <th scope="col">Right relation, core / hard</th>
+              <th scope="col">Right action</th>
+              <th scope="col">Wrong merges, retirements or conflicts</th>
+              <th scope="col">Sent to the agent (of 160)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><th scope="row">Jev</th><td>98% / 93%</td><td>96%</td><td>0</td><td>8</td></tr>
+            <tr><th scope="row">Clef (Workers AI)</th><td>92% / 97%</td><td>89%</td><td>0</td><td>21</td></tr>
+            <tr><th scope="row">Clef-Flash (Workers AI)</th><td>97% / 90%</td><td>88%</td><td>0</td><td>19</td></tr>
+            <tr class="base"><th scope="row">Word-overlap heuristic</th><td>58% / 48%</td><td>54%</td><td>0</td><td>n/a</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <h3>Read this with care</h3>
+      <ul class="caveats">
+        <li>One annotator labeled every pair, and the pairs are synthetic: realistic, but invented.</li>
+        <li>Each model's thresholds were set on the same pairs they are scored on, so the action numbers are optimistic.</li>
+        <li>The set is small. One item moves a per-label score by about five points.</li>
+        <li>The heuristic was tuned against the core set, so its numbers are optimistic too.</li>
+      </ul>
+      <p class="aside">The data, scorer and full results are in <a href="https://github.com/GeraniumLabs/Trust/tree/main/eval"><code>eval/</code></a>. Recommended setup: Clef-Flash as the judge, Jev as the second opinion.</p>
+    </div>
+  </section>
 
-    <aside>
-      <section class="panel detail" aria-label="Selection">
-        <h2>Provenance</h2>
-        <div id="detail" class="note">Click a memory to see where it came from and what it affected.</div>
-      </section>
-      <section class="panel" aria-label="API calls">
-        <h2>API calls</h2>
-        <div id="log"><div class="note">Every step is a real call to the Trust API. They appear here.</div></div>
-      </section>
-    </aside>
-  </main>
-  <footer>Trust is open source. Built on Cloudflare Workers and Durable Objects (SQLite).</footer>
-  <script src="/app.js" type="module"></script>
+  <section aria-labelledby="iso-h">
+    <div class="wrap two">
+      <div>
+        <h2 id="iso-h">Walls that hold</h2>
+        <ul>
+          <li><strong>Separate scopes.</strong> Matters for client work, projects for codebases. Each scope has its own store.</li>
+          <li><strong>Checked on every call.</strong> Walls between people and scopes are enforced on every read and write, over HTTP and MCP. A refusal reveals nothing about the other side.</li>
+          <li><strong>One reviewed way across.</strong> Knowledge reaches the shared precedent scope only through a promotion that is de-identified and approved by a person.</li>
+        </ul>
+      </div>
+      <div>
+        <h2>Identity on every call</h2>
+        <ul>
+          <li><strong>Bearer tokens.</strong> One admin token per space. One agent token per session, valid for 12 hours and revocable.</li>
+          <li><strong>Hashes only.</strong> Tokens are stored as hashes, so a copy of the database can't be replayed as credentials.</li>
+          <li><strong>MCP built in.</strong> Agents connect at <code>/mcp/&lt;space&gt;</code> with their session token.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="wrap">
+      <p class="aside">Why SQLite and not git? In a benchmark, a Durable Object SQLite write took 19 ms at p50, against about 180 to 240 ms for a git push. So writes go to SQLite. Batched git exports are planned, not built yet.</p>
+    </div>
+  </section>
+
+  <section id="run" aria-labelledby="run-h">
+    <div class="wrap">
+      <div class="prose">
+        <h2 id="run-h">Run it yourself</h2>
+        <p class="muted">You need Node and a Cloudflare account for deploys. Local development works without a login.</p>
+      </div>
+      <ol class="steps">
+        <li><div><p>Clone and install.</p>
+<pre><code>git clone https://github.com/GeraniumLabs/Trust.git
+cd Trust
+npm install</code></pre></div></li>
+        <li><div><p>Start it locally. <code>npm run dev</code> uses Clef-Flash on Workers AI and needs <code>wrangler login</code>. <code>npm run dev:offline</code> needs no login and uses the heuristic judge.</p>
+<pre><code>npm run dev          <span class="c"># http://localhost:8787</span>
+npm run dev:offline  <span class="c"># no Cloudflare login</span></code></pre></div></li>
+        <li><div><p>Deploy to your own workers.dev URL.</p>
+<pre><code>npm run deploy</code></pre></div></li>
+        <li><div><p>Point an agent at it over MCP, with the session token as a bearer token.</p>
+<pre><code>POST https://&lt;your-worker&gt;/mcp/&lt;space&gt;
+Authorization: Bearer trust_agt_…</code></pre>
+<p class="muted">Tools: <code>memory_recall</code>, <code>memory_remember</code>, <code>memory_relate</code>, <code>memory_retract</code>, <code>memory_why</code>, <code>memory_impact</code>.</p></div></li>
+      </ol>
+      <p class="aside">Trust was built first for <a href="https://mergery.dev">Mergery</a>, git for agents. It is a separate, standalone project and works with any agent that speaks MCP or HTTP.</p>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>Trust is open source under the MIT license.</span>
+    <nav aria-label="Footer">
+      <a href="/demo/">Live demo</a>
+      <a href="https://github.com/GeraniumLabs/Trust">GitHub</a>
+      <a href="https://github.com/GeraniumLabs/Trust/blob/main/LICENSE">License</a>
+    </nav>
+  </div>
+</footer>
 </body>
 </html>

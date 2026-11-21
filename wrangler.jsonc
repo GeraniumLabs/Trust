@@ -3,8 +3,8 @@
   "name": "trust-demo",
   "main": "src/index.ts",
   "compatibility_date": "2026-11-01",
-  // The demo page. Requests to /api/* fall through to the Worker.
-  "assets": { "directory": "./public", "binding": "ASSETS", "run_worker_first": ["/api/*"] },
+  // Static site: the landing page at /, the interactive demo at /demo/. /api/* and /mcp/* go to the Worker.
+  "assets": { "directory": "./public", "binding": "ASSETS", "run_worker_first": ["/api/*", "/mcp/*"] },
   "durable_objects": {
     "bindings": [
       { "name": "REGISTRY", "class_name": "Registry" },
