@@ -218,7 +218,8 @@ export class SystemOneJudge extends ModelJudge {
       headers: { "content-type": "application/json", ...(this.key ? { authorization: `Bearer ${this.key}` } : {}) },
       body: JSON.stringify(body),
     });
-    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    // Keep the start of the error body: providers name the bad field or model there.
+    if (!r.ok) throw new Error(`HTTP ${r.status}: ${(await r.text().catch(() => "")).slice(0, 200)}`);
     return r.json();
   }
 }
