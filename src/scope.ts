@@ -73,8 +73,22 @@ export class Scope extends DurableObject<ScopeEnv> {
     return n;
   }
 
+  // Demo scopes delete themselves an hour after their first write; persistent ones never do.
   private async touchTtl() {
-    if ((await this.ctx.storage.getAlarm()) == null) await this.ctx.storage.setAlarm(Date.now() + TTL_MS);
+    this.init();
+    const persistent = (this.ctx.storage.sql.exec(`SELECT v FROM meta WHERE k = 'persistent'`).toArray()[0] as any)?.v === "1";
+    if (!persistent && (await this.ctx.storage.getAlarm()) == null) await this.ctx.storage.setAlarm(Date.now() + TTL_MS);
+  }
+
+  async setPersistent() {
+    this.init();
+    this.ctx.storage.sql.exec(`INSERT OR REPLACE INTO meta VALUES ('persistent', '1')`);
+    await this.ctx.storage.deleteAlarm();
+  }
+
+  async destroy() {
+    await this.ctx.storage.deleteAll();
+    this.ready = false;
   }
 
   // ---------- writes ----------
@@ -659,7 +673,7 @@ export class Scope extends DurableObject<ScopeEnv> {
     return this.ctx.storage.sql.exec(`SELECT * FROM reviews WHERE id = ?`, id).one();
   }
 
-  async decideReview(id: string, approve: boolean, reviewer: string) {
+  async decideReview(id: string, approve: boolean, reviewer: string, prefix = "p") {
     this.init();
     const sql = this.ctx.storage.sql;
     const r = sql.exec(`SELECT * FROM reviews WHERE id = ?`, id).toArray()[0] as any;
@@ -671,7 +685,7 @@ export class Scope extends DurableObject<ScopeEnv> {
     }
     // The original is deliberately not stored in the precedent entry. Its provenance points to
     // "a matter" by an opaque reference, never to the client.
-    const entry = await this.remember("p", {
+    const entry = await this.remember(prefix, {
       title: r.title,
       body: r.proposed,
       kind: "precedent",

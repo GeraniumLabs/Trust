@@ -1,7 +1,7 @@
 // Trust v1: agent memory that knows where every memory came from.
 // Worker = API router + static demo page. Registry DO authorizes; Scope DOs store.
 
-import { Registry } from "./registry";
+import { Registry, type ScopeDef } from "./registry";
 import { Scope } from "./scope";
 import type { SourceRef, Derivation } from "./types";
 
@@ -14,12 +14,18 @@ interface Env {
   TRUST_BOOTSTRAP_TOKEN?: string; // when set, only its holder can create spaces
 }
 
-const DEMO_SCOPES = [
+const DEMO_SCOPES: ScopeDef[] = [
   { id: "northwind", label: "Northwind matter", client: "Northwind", kind: "matter", prefix: "n" },
   { id: "contoso", label: "Contoso matter", client: "Contoso", kind: "matter", prefix: "c" },
   { id: "precedent", label: "Firm precedent", client: "", kind: "precedent", prefix: "p" },
 ];
-const prefixOf = (scope: string) => DEMO_SCOPES.find((s) => s.id === scope)?.prefix ?? "e";
+const SCOPE_ID = /^[a-z0-9][a-z0-9-]{0,39}$/;
+const SCOPE_KINDS = ["matter", "project", "precedent"];
+function validScope(s: any): ScopeDef {
+  if (!s || !SCOPE_ID.test(String(s.id))) throw new Error("scope id must be 1-40 lowercase letters, digits or dashes");
+  if (!SCOPE_KINDS.includes(s.kind)) throw new Error(`scope kind must be one of ${SCOPE_KINDS.join(", ")}`);
+  return { id: s.id, label: String(s.label || s.id).slice(0, 120), kind: s.kind, client: s.client ? String(s.client).slice(0, 120) : "", prefix: s.id };
+}
 
 const json = (data: unknown, status = 200) =>
   new Response(JSON.stringify(data), { status, headers: { "content-type": "application/json", "cache-control": "no-store" } });
@@ -90,16 +96,32 @@ const handler = {
     const body: any = req.method === "POST" ? await req.json().catch(() => ({})) : {};
 
     try {
-      // POST /api/demo -> a new space. Open on the public demo; when TRUST_BOOTSTRAP_TOKEN is set,
-      // only its holder can create spaces. The response carries the admin token, once.
+      // POST /api/demo -> a throwaway demo space (an hour, capped). Open on the public demo; when
+      // TRUST_BOOTSTRAP_TOKEN is set, only its holder can create spaces.
       if (parts[1] === "demo" && parts.length === 2 && req.method === "POST") {
         if (env.TRUST_BOOTSTRAP_TOKEN && !(await sameSecret(bearer(req), env.TRUST_BOOTSTRAP_TOKEN))) return fail("Creating a space needs the bootstrap token.", 401);
         const id = crypto.randomUUID().slice(0, 8);
         const reg = env.REGISTRY.get(env.REGISTRY.idFromName(id)) as unknown as Registry;
-        const { adminToken } = await reg.setup(DEMO_SCOPES.map(({ prefix, ...s }) => s));
+        const { adminToken } = await reg.setup(DEMO_SCOPES);
         return json({ demo: id, scopes: DEMO_SCOPES, adminToken });
       }
-      if (parts[1] !== "demo" || !parts[2]) return fail("Not found", 404);
+      // POST /api/spaces -> a persistent space with its own scopes. Always needs the bootstrap token.
+      // { name?, scopes: [{ id, label?, kind: "project" | "matter" | "precedent", client? }] }
+      if (parts[1] === "spaces" && parts.length === 2 && req.method === "POST") {
+        if (!env.TRUST_BOOTSTRAP_TOKEN) return fail("Persistent spaces are off: set TRUST_BOOTSTRAP_TOKEN to enable them.", 403);
+        if (!(await sameSecret(bearer(req), env.TRUST_BOOTSTRAP_TOKEN))) return fail("Creating a space needs the bootstrap token.", 401);
+        const defs = (Array.isArray(body.scopes) ? body.scopes : []).map(validScope);
+        if (!defs.length || defs.length > 50) return fail("a space needs 1 to 50 scopes", 400);
+        if (new Set(defs.map((d: ScopeDef) => d.id)).size !== defs.length) return fail("scope ids must be unique", 400);
+        if (defs.filter((d: ScopeDef) => d.kind === "precedent").length > 1) return fail("a space has at most one precedent scope", 400);
+        const id = crypto.randomUUID().replace(/-/g, "").slice(0, 12);
+        const reg = env.REGISTRY.get(env.REGISTRY.idFromName(id)) as unknown as Registry;
+        const { adminToken } = await reg.setup(defs, { persistent: true, name: body.name ? String(body.name).slice(0, 120) : undefined });
+        for (const d of defs) await (env.SCOPE.get(env.SCOPE.idFromName(`${id}:${d.id}`)) as unknown as Scope).setPersistent();
+        return json({ space: id, persistent: true, scopes: defs, adminToken });
+      }
+      // Demo and persistent spaces share every other route: /api/demo/:id/... and /api/spaces/:id/...
+      if ((parts[1] !== "demo" && parts[1] !== "spaces") || !parts[2]) return fail("Not found", 404);
 
       const demo = parts[2];
       const action = parts[3];
@@ -129,7 +151,34 @@ const handler = {
         return a.ok ? null : fail(a.reason!, 403);
       };
 
+      const spaceScopes = await reg.scopes();
+      const scopeDef = (id: string) => spaceScopes.find((x) => x.id === id);
+      const precedent = spaceScopes.find((x) => x.kind === "precedent")?.id ?? null;
+
+      // GET /api/spaces/:id -> the space and its scopes; DELETE -> delete it and all its memory.
+      if (!action) {
+        { const denied = needAdmin(); if (denied) return denied; }
+        if (req.method === "GET") return json({ space: demo, ...(await reg.info()) });
+        if (req.method === "DELETE") {
+          if (body.confirm !== demo && url.searchParams.get("confirm") !== demo) return fail(`Deleting a space can't be undone. Repeat its id as confirm=${demo}.`, 400);
+          const ids = await reg.destroy();
+          for (const sid of ids) await scopeStub(sid).destroy();
+          return json({ deleted: demo, scopes: ids });
+        }
+        return fail("Not found", 404);
+      }
+
       switch (action) {
+        case "scopes": {
+          { const denied = needAdmin(); if (denied) return denied; }
+          if (req.method === "GET") return json(spaceScopes);
+          const def = validScope(body);
+          if (def.kind === "precedent" && precedent) return fail("this space already has a precedent scope", 400);
+          await reg.addScope(def);
+          if ((await reg.info()).persistent) await scopeStub(def.id).setPersistent();
+          return json(def);
+        }
+
         case "sessions": {
           // POST sessions/:id/end — the admin, or the agent ending its own session.
           if (parts[4] && parts[5] === "end") {
@@ -154,7 +203,7 @@ const handler = {
             return fail(`Rejected: this memory looks like it contains a ${secret}. Secrets are never stored.`, 422);
           }
           // Origin comes from the session, never from the agent's own claim.
-          const entry = await scopeStub(scope).remember(prefixOf(scope), {
+          const entry = await scopeStub(scope).remember(scopeDef(scope)?.prefix ?? scope, {
             title: body.title,
             body: body.body,
             kind: body.kind,
@@ -195,8 +244,8 @@ const handler = {
           const step = Number(body.step ?? 0);
           const own = await scopeStub(target).recall(body.query ?? "", sid, step, 5);
           let advisory: any[] = [];
-          if (target !== "precedent") {
-            advisory = (await scopeStub("precedent").recall(body.query ?? "", sid, step, 3)).map((e) => ({ ...e, advisory: true }));
+          if (precedent && target !== precedent) {
+            advisory = (await scopeStub(precedent).recall(body.query ?? "", sid, step, 3)).map((e) => ({ ...e, advisory: true }));
           }
           return json({ scope: target, results: [...own, ...advisory] });
         }
@@ -245,20 +294,22 @@ const handler = {
           { const denied = needAdmin(); if (denied) return denied; }
           const entry = await scopeStub(body.scope).getEntry(body.entry);
           if (!entry) return fail("Unknown entry", 404);
-          const clients = DEMO_SCOPES.map((s) => s.client);
+          if (!precedent) return fail("This space has no precedent scope to promote into.", 400);
+          const clients = spaceScopes.map((s) => s.client ?? "").filter(Boolean);
           const t = deidentify(entry.title, clients);
           const b = deidentify(entry.body, clients);
           const ref = await opaqueRef(`${demo}:${body.scope}:${entry.id}`);
-          const review = await scopeStub("precedent").createReview(ref, t.text, entry.body, b.text, [...t.removed, ...b.removed]);
+          const review = await scopeStub(precedent).createReview(ref, t.text, entry.body, b.text, [...t.removed, ...b.removed]);
           await reg.logEvent("admin", "promote_request", body.scope, "pending", `${entry.id} -> review ${review.id}`);
           return json(review);
         }
 
         case "reviews": {
           { const denied = needAdmin(); if (denied) return denied; }
-          if (req.method === "GET") return json(await scopeStub("precedent").reviews());
-          const out = await scopeStub("precedent").decideReview(parts[4], !!body.approve, body.reviewer ?? "reviewer");
-          await reg.logEvent(body.reviewer ?? "reviewer", "review", "precedent", out.review.status, `${parts[4]}${out.entry ? ` -> ${out.entry.id}` : ""}`);
+          if (!precedent) return fail("This space has no precedent scope.", 400);
+          if (req.method === "GET") return json(await scopeStub(precedent).reviews());
+          const out = await scopeStub(precedent).decideReview(parts[4], !!body.approve, body.reviewer ?? "reviewer", scopeDef(precedent)?.prefix ?? precedent);
+          await reg.logEvent(body.reviewer ?? "reviewer", "review", precedent, out.review.status, `${parts[4]}${out.entry ? ` -> ${out.entry.id}` : ""}`);
           return json(out);
         }
 
@@ -320,7 +371,7 @@ const handler = {
 
         case "export": {
           { const denied = needAdmin(); if (denied) return denied; }
-          const sc = DEMO_SCOPES.find((x) => x.id === parts[4]);
+          const sc = scopeDef(parts[4]);
           if (!sc) return fail("Unknown scope", 404);
           return json(await scopeStub(sc.id).exportBundle(sc.label));
         }
@@ -329,7 +380,7 @@ const handler = {
           { const denied = needAdmin(); if (denied) return denied; }
           const state = await reg.state();
           const scopes: Record<string, unknown> = {};
-          for (const s of DEMO_SCOPES) scopes[s.id] = await scopeStub(s.id).graph();
+          for (const s of spaceScopes) scopes[s.id] = await scopeStub(s.id).graph();
           return json({ ...state, graphs: scopes });
         }
 

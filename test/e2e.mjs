@@ -7,6 +7,7 @@ import assert from "node:assert/strict";
 const BASE = process.env.BASE_URL ?? "http://localhost:8787";
 let demo;
 let admin; // this space's admin token
+const BOOT = process.env.TRUST_BOOTSTRAP_TOKEN; // set when the Worker runs with one
 const tokens = {}; // session id -> agent token
 
 // Agent actions carry the acting session's token; everything else carries the admin token.
@@ -35,7 +36,7 @@ async function test(name, fn) {
   console.log(`ok - ${name}`);
 }
 
-const created = await api("POST", "/demo");
+const created = await api("POST", "/demo", undefined, BOOT);
 demo = created.data.demo;
 admin = created.data.adminToken;
 assert.ok(demo, "demo created");
@@ -291,7 +292,7 @@ await test("tokens are never stored or shown in clear", async () => {
 });
 
 await test("another space's admin token is useless here", async () => {
-  const other = (await api("POST", "/demo")).data.adminToken;
+  const other = (await api("POST", "/demo", undefined, BOOT)).data.adminToken;
   assert.equal((await api("GET", `/demo/${demo}/graph`, undefined, other)).status, 401);
 });
 
@@ -314,7 +315,7 @@ await test("MCP refuses session URLs and the admin token", async () => {
 // ---------- judge: dedupe, supersede, trust rule (default heuristic judge) ----------
 // A fresh demo: the one above has a wall on Northwind by now.
 const firstDemo = demo;
-const fresh = (await api("POST", "/demo")).data;
+const fresh = (await api("POST", "/demo", undefined, BOOT)).data;
 demo = fresh.demo;
 admin = fresh.adminToken;
 const j1 = (await post("/sessions", { scope: "contoso", agent: "claude-code", supervisor: "Casey" })).data;
@@ -405,5 +406,49 @@ await test("the judge endpoint scores a pair without storing it", async () => {
   assert.equal(out.length, 1);
   assert.equal(out[0].relation, "contradicts");
 });
+
+// ---------- persistent spaces (need the Worker to run with TRUST_BOOTSTRAP_TOKEN) ----------
+if (!BOOT) {
+  console.log("skip - persistent spaces: set TRUST_BOOTSTRAP_TOKEN for the Worker and this script");
+} else {
+  let space, spaceAdmin, sess;
+  await test("a persistent space needs the bootstrap token and gets its own scopes", async () => {
+    const def = { name: "Mergery", scopes: [{ id: "mergery", label: "mergery.dev repo", kind: "project" }] };
+    assert.equal((await api("POST", "/spaces", def)).status, 401, "no bootstrap token");
+    assert.equal((await api("POST", "/spaces", def, admin)).status, 401, "an admin token isn't the bootstrap token");
+    assert.equal((await api("POST", "/spaces", { scopes: [{ id: "Bad Id", kind: "project" }] }, BOOT)).status, 400);
+    const r = (await api("POST", "/spaces", def, BOOT)).data;
+    space = r.space;
+    spaceAdmin = r.adminToken;
+    assert.equal(r.persistent, true);
+    const info = (await api("GET", `/spaces/${space}`, undefined, spaceAdmin)).data;
+    assert.equal(info.persistent, true);
+    assert.deepEqual(info.scopes.map((x) => x.id), ["mergery"]);
+  });
+
+  await test("memories in a project scope get its prefix, and recall works without a precedent scope", async () => {
+    sess = (await api("POST", `/spaces/${space}/sessions`, { scope: "mergery", agent: "builder-1", supervisor: "Jonathan" }, spaceAdmin)).data;
+    const e = (await api("POST", `/spaces/${space}/remember`, { title: "Coordinator owns the tables", body: "In Mergery, the coordinator Durable Object owns the decisions and notes tables.", sources: [{ uri: "src/coordinator.ts", hash: "553289b" }] }, sess.token)).data;
+    assert.match(e.id, /^mergery-\d+$/);
+    const rec = (await api("POST", `/spaces/${space}/recall`, { query: "who owns the notes tables" }, sess.token)).data;
+    assert.equal(rec.results[0].id, e.id);
+    assert.ok(rec.results.every((x) => !x.advisory));
+  });
+
+  await test("an admin can add a scope; agents can't", async () => {
+    assert.equal((await api("POST", `/spaces/${space}/scopes`, { id: "docs", kind: "project" }, sess.token)).status, 403);
+    assert.equal((await api("POST", `/spaces/${space}/scopes`, { id: "docs", label: "Docs site", kind: "project" }, spaceAdmin)).status, 200);
+    assert.equal((await api("POST", `/spaces/${space}/scopes`, { id: "docs", kind: "project" }, spaceAdmin)).status, 400, "no duplicates");
+    const g = (await api("GET", `/spaces/${space}/graph`, undefined, spaceAdmin)).data;
+    assert.deepEqual(Object.keys(g.graphs).sort(), ["docs", "mergery"]);
+  });
+
+  await test("deleting a space needs confirmation and removes everything", async () => {
+    assert.equal((await api("DELETE", `/spaces/${space}`, undefined, spaceAdmin)).status, 400, "no confirm");
+    assert.equal((await api("DELETE", `/spaces/${space}?confirm=${space}`, undefined, sess.token)).status, 403, "agents can't");
+    assert.equal((await api("DELETE", `/spaces/${space}?confirm=${space}`, undefined, spaceAdmin)).data.deleted, space);
+    assert.equal((await api("GET", `/spaces/${space}`, undefined, spaceAdmin)).status, 410, "gone");
+  });
+}
 
 console.log(`\n${passed} passed (demos ${firstDemo}, ${demo})`);

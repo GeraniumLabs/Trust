@@ -46,13 +46,31 @@ Every call carries a bearer token, and the token alone decides who is calling.
 
 A session id in a request body is accepted only as a cross-check: if it doesn't match the token, the call is refused.
 
-## API (per space: `/api/demo/:id/...`)
+## Spaces
+
+A space is one Registry Durable Object (sessions, tokens, walls, audit) plus one Scope Durable Object per scope (memories, sources, receipts, judgments), each with its own SQLite store. There are two kinds:
+
+- **Demo spaces** (`POST /api/demo`): the Northwind, Contoso and precedent scopes, deleted after an hour, with an operation cap.
+- **Persistent spaces** (`POST /api/spaces`, bootstrap token required): your own scopes, kept until an admin deletes the space. Scope kinds are `project` (a codebase, say), `matter` (client work, with names stripped on promotion) and `precedent` (at most one; reviewed, de-identified knowledge every scope can read as advisory).
+
+```sh
+curl -X POST https://trust.example/api/spaces -H "authorization: Bearer $TRUST_BOOTSTRAP_TOKEN" \
+  -d '{"name":"Mergery","scopes":[{"id":"mergery","label":"mergery.dev repo","kind":"project"}]}'
+# -> { "space": "a1b2c3d4e5f6", "adminToken": "trust_adm_...", ... }
+```
+
+Every route below works on both, as `/api/demo/:id/...` or `/api/spaces/:id/...`.
+
+## API (per space)
 
 **Who** is the token the call needs: admin, agent, or either (an agent only within its own scope).
 
 | Method | Path | Who | Does |
 | --- | --- | --- | --- |
 | POST | `/api/demo` | bootstrap, if set | Create a space (expires after an hour on the demo). Returns the admin token |
+| POST | `/api/spaces` | bootstrap | Create a persistent space with its own scopes. Returns the admin token |
+| GET / DELETE | `/api/spaces/:id` | admin | The space and its scopes; or delete it and all its memory (`?confirm=<id>`) |
+| GET / POST | `scopes` | admin | List scopes, or add one `{ id, label, kind, client? }` |
 | POST | `sessions` | admin | Start an agent session bound to one scope. Returns the agent token |
 | POST | `sessions/:id/end` | admin or that agent | End a session and revoke its token |
 | POST | `remember` | agent | Write a memory with sources and parents |
@@ -110,7 +128,7 @@ A model call that fails or takes longer than `TRUST_JUDGE_TIMEOUT_MS` (1,500 ms 
 
 Agents connect to `/mcp/:space` (MCP over streamable HTTP, JSON responses) with their session token as `Authorization: Bearer trust_agt_...`. Tools: `memory_recall`, `memory_remember`, `memory_relate`, `memory_retract`, `memory_why`, `memory_impact`. Calls go through the same HTTP API with the same token, so an agent can't reach another matter over MCP either. The old `/mcp/:demo/:session` form is refused, as is the admin token.
 
-## Guarantees the tests check (`npm test`, 37 checks)
+## Guarantees the tests check (`npm test`, 41 checks)
 
 - Origin comes from the session; entries without sources are capped at `unverified`.
 - No cross-matter reads or writes, over HTTP or MCP, and refusals leak nothing.
@@ -127,9 +145,10 @@ Agents connect to `/mcp/:space` (MCP over streamable HTTP, JSON responses) with 
 - An unsure judgment takes no action and returns a note to the agent; the agent's `relate` decision is applied with the same rules and closes the note.
 - No token, a made-up token, another space's token, or an agent token claiming a different session is refused; agents can't start sessions, roll back, wall, or see the graph; an agent can't read another matter's provenance.
 - Ending a session revokes its token over HTTP and MCP; tokens never appear in any response after issue.
+- Persistent spaces need the bootstrap token, get their own scope ids and entry prefixes, work without a precedent scope, and are deleted only by their admin with confirmation.
 
 ## Demo limits
 
-The public demo lets anyone create a space, and the page holds that space's admin token and its agents' tokens (in memory only) so visitors can try every operation. Each space deletes itself after an hour, with an operation cap. Still to do for production: spaces that persist instead of expiring, more than one admin per space, token rotation, and the git export described in the design doc.
+The public demo lets anyone create a space, and the page holds that space's admin token and its agents' tokens (in memory only) so visitors can try every operation. Each space deletes itself after an hour, with an operation cap. Still to do for production: more than one admin per space, token rotation, and the git export described in the design doc.
 
 MIT licensed.

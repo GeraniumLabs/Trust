@@ -25,6 +25,14 @@ function newToken(kind: "adm" | "agt") {
   return `trust_${kind}_${b64url(crypto.getRandomValues(new Uint8Array(32)))}`;
 }
 
+export interface ScopeDef {
+  id: string;
+  label: string;
+  kind: "matter" | "project" | "precedent";
+  client?: string; // names stripped when promoting to precedent
+  prefix?: string; // entry ids are <prefix>-<n>; defaults to the scope id
+}
+
 export type Caller = { kind: "admin" } | { kind: "agent"; session: SessionInfo };
 
 export class Registry extends DurableObject<RegistryEnv> {
@@ -34,7 +42,10 @@ export class Registry extends DurableObject<RegistryEnv> {
     if (this.ready) return;
     const sql = this.ctx.storage.sql;
     sql.exec(`CREATE TABLE IF NOT EXISTS meta (k TEXT PRIMARY KEY, v TEXT)`);
-    sql.exec(`CREATE TABLE IF NOT EXISTS scopes (id TEXT PRIMARY KEY, label TEXT, client TEXT, kind TEXT)`);
+    sql.exec(`CREATE TABLE IF NOT EXISTS scopes (id TEXT PRIMARY KEY, label TEXT, client TEXT, kind TEXT, prefix TEXT)`);
+    try {
+      sql.exec(`ALTER TABLE scopes ADD COLUMN prefix TEXT`); // spaces created before prefixes were stored
+    } catch {}
     sql.exec(`CREATE TABLE IF NOT EXISTS sessions (id TEXT PRIMARY KEY, scope TEXT, agent TEXT, supervisor TEXT, status TEXT, started_at INTEGER)`);
     sql.exec(`CREATE TABLE IF NOT EXISTS walls (supervisor TEXT, scope TEXT, reason TEXT, at INTEGER)`);
     sql.exec(`CREATE TABLE IF NOT EXISTS changes (id TEXT PRIMARY KEY, session TEXT, ref TEXT, title TEXT, at INTEGER)`);
@@ -51,12 +62,17 @@ export class Registry extends DurableObject<RegistryEnv> {
     return n;
   }
 
-  async setup(scopes: { id: string; label: string; client: string; kind: string }[]) {
+  // A demo space deletes itself after an hour and has an operation cap. A persistent space keeps
+  // its memory until an admin deletes it.
+  async setup(scopes: ScopeDef[], opts: { persistent?: boolean; name?: string } = {}) {
     this.init();
     const sql = this.ctx.storage.sql;
-    for (const s of scopes) sql.exec(`INSERT OR REPLACE INTO scopes VALUES (?, ?, ?, ?)`, s.id, s.label, s.client, s.kind);
+    if ((await this.exists())) throw new Error("this space already exists");
+    for (const s of scopes) this.insertScope(s);
     sql.exec(`INSERT OR REPLACE INTO meta VALUES ('created_at', ?)`, String(Date.now()));
-    await this.ctx.storage.setAlarm(Date.now() + DEMO_TTL_MS);
+    sql.exec(`INSERT OR REPLACE INTO meta VALUES ('persistent', ?)`, opts.persistent ? "1" : "0");
+    if (opts.name) sql.exec(`INSERT OR REPLACE INTO meta VALUES ('name', ?)`, opts.name);
+    if (!opts.persistent) await this.ctx.storage.setAlarm(Date.now() + DEMO_TTL_MS);
     // The admin token belongs to whoever created this space: a person, or the service acting for them.
     const adminToken = newToken("adm");
     sql.exec(`INSERT INTO tokens VALUES (?, 'admin', NULL, ?, NULL, NULL)`, await hashToken(adminToken), Date.now());
@@ -91,9 +107,37 @@ export class Registry extends DurableObject<RegistryEnv> {
     return { id: sessionId, status: "ended" };
   }
 
-  async scopes() {
+  private insertScope(s: ScopeDef) {
+    this.ctx.storage.sql.exec(`INSERT INTO scopes (id, label, client, kind, prefix) VALUES (?, ?, ?, ?, ?)`, s.id, s.label, s.client ?? "", s.kind, s.prefix ?? s.id);
+  }
+
+  async scopes(): Promise<ScopeDef[]> {
     this.init();
     return this.ctx.storage.sql.exec(`SELECT * FROM scopes`).toArray() as any[];
+  }
+
+  async addScope(s: ScopeDef) {
+    this.init();
+    if (this.ctx.storage.sql.exec(`SELECT 1 FROM scopes WHERE id = ?`, s.id).toArray().length) throw new Error(`scope ${s.id} already exists`);
+    this.insertScope(s);
+    this.log("admin", "add_scope", s.id, "ok", `${s.kind}: ${s.label}`);
+    return s;
+  }
+
+  async info() {
+    this.init();
+    const meta = (k: string) => (this.ctx.storage.sql.exec(`SELECT v FROM meta WHERE k = ?`, k).toArray()[0] as any)?.v ?? null;
+    return { name: meta("name"), persistent: meta("persistent") === "1", created_at: Number(meta("created_at")), scopes: await this.scopes() };
+  }
+
+  // Deletes the space's registry (sessions, tokens, walls, audit). Returns its scope ids so the
+  // caller can delete each scope's store too.
+  async destroy() {
+    this.init();
+    const ids = (await this.scopes()).map((s) => s.id);
+    await this.ctx.storage.deleteAll();
+    this.ready = false;
+    return ids;
   }
 
   async exists() {
@@ -104,7 +148,8 @@ export class Registry extends DurableObject<RegistryEnv> {
   async countOp() {
     this.init();
     const n = this.next("ops");
-    if (n > OP_LIMIT) throw new Error("This demo has reached its operation limit. Start a new demo.");
+    const persistent = (this.ctx.storage.sql.exec(`SELECT v FROM meta WHERE k = 'persistent'`).toArray()[0] as any)?.v === "1";
+    if (!persistent && n > OP_LIMIT) throw new Error("This demo has reached its operation limit. Start a new demo.");
     return n;
   }
 
