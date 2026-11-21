@@ -93,6 +93,7 @@ async function scorePairs() {
     missedConflicts: results.filter((r) => r.gold === "contradicts" && r.action !== "conflict").map((r) => r.id), // a disagreement nobody reviews
     falseConflicts: results.filter((r) => r.action === "conflict" && r.gold !== "contradicts").map((r) => r.id), // review noise
     fallbacks: results.filter((r) => r.fallback).length,
+    fallbackReasons: [...new Set(results.filter((r) => r.fallback).map((r) => r.fallback))].slice(0, 5),
     byDifficulty: by("difficulty"),
     byDomain: by("domain"),
     latencyMs: { judgeP50: quantile(results.map((r) => r.judgeMs), 0.5), judgeP95: quantile(results.map((r) => r.judgeMs), 0.95), roundTripP50: quantile(results.map((r) => r.roundTripMs), 0.5) },
@@ -106,6 +107,10 @@ function printPairs({ summary: s, perLabel, confusion }) {
   console.log(`  by difficulty: ${Object.entries(s.byDifficulty).map(([k, v]) => `${k} ${pct(v)}`).join(", ")}`);
   console.log(`  by domain: ${Object.entries(s.byDomain).map(([k, v]) => `${k} ${pct(v)}`).join(", ")}`);
   console.log(`  judge latency p50 ${s.latencyMs.judgeP50} ms, p95 ${s.latencyMs.judgeP95} ms; fallbacks ${s.fallbacks}`);
+  if (s.fallbackReasons.length) {
+    console.log(`\n  ⚠ ${s.fallbacks} of ${s.n} model calls failed and fell back to the heuristic, so these are mostly heuristic scores:`);
+    for (const r of s.fallbackReasons) console.log(`    ${r}`);
+  }
   console.log(`\n  ${"label".padEnd(12)} ${"P".padStart(6)} ${"R".padStart(6)} ${"F1".padStart(6)}`);
   for (const [l, m] of Object.entries(perLabel)) console.log(`  ${l.padEnd(12)} ${pct(m.precision).padStart(6)} ${pct(m.recall).padStart(6)} ${pct(m.f1).padStart(6)}`);
   console.log(`\n  confusion (rows gold, columns predicted)`);
