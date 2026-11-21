@@ -4,7 +4,7 @@
 
 import { DurableObject } from "cloudflare:workers";
 import type { Corroboration, Derivation, Entry, RememberInput, SourceRef, Status, TrustTier, UnsureNote } from "./types";
-import { isUnsure, makeJudge, makeSecondJudge, RELATIONS, thresholdsFor, unsureBelow, type Judge, type JudgeEnv, type Judgment, type MemoryText, type Relation, type Thresholds } from "./judge";
+import { isUnsure, makeJudge, makeSecondJudge, resolveJudge, RELATIONS, thresholdsFor, unsureBelow, type Judge, type JudgeEnv, type Judgment, type MemoryText, type Relation, type Thresholds } from "./judge";
 
 const TTL_MS = 60 * 60 * 1000;
 const TRUST_WEIGHT: Record<TrustTier, number> = { reviewed: 3, sourced: 2, unverified: 1 };
@@ -237,7 +237,8 @@ export class Scope extends DurableObject<ScopeEnv> {
 
   async judgeConfig() {
     const judge = this.judge.name;
-    return { judge, thresholds: thresholdsFor(judge, this.env), fallbackThresholds: thresholdsFor("heuristic"), unsureBelow: unsureBelow(this.env), second: this.second?.name ?? null };
+    const { requested, warning } = resolveJudge(this.env);
+    return { judge, requested, warning, thresholds: thresholdsFor(judge, this.env), fallbackThresholds: thresholdsFor("heuristic"), unsureBelow: unsureBelow(this.env, judge), fallbackUnsureBelow: unsureBelow(this.env, "heuristic"), second: this.second?.name ?? null };
   }
 
   // Nearest neighbours of a new write: same kind, still live, not its own parents.

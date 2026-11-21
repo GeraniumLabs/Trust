@@ -75,7 +75,7 @@ On every write, the Scope finds up to five similar memories of the same kind and
 | supersedes | The older memory becomes `superseded` and ranks last in recall. A write with lower trust than the memory it would replace opens a review instead |
 | refines, unrelated | Logged only |
 
-A judgment acts only when its confidence clears the bar for its relation. Model judges default to duplicate 0.75, supersedes 0.7, contradicts 0.5; the heuristic merges only identical text. Override with `TRUST_JUDGE_THRESHOLDS`, flat or per judge (see `eval/README.md`); `GET judge-config` shows what's in force. Every judgment is stored with the judge's name, its confidence, and the action taken (`relations/:scope`).
+A judgment acts only when its confidence clears the bar for its relation. Each model has its own bars, set from its eval run, because models report confidence very differently: Jev acts at duplicate 0.75, supersedes 0.7, contradicts 0.5; Clef-Flash at 0.45, 0.45 and 0.2. Unscored models get Jev's bars. The heuristic merges only identical text. Override with `TRUST_JUDGE_THRESHOLDS`, flat or per judge (see `eval/README.md`); `GET judge-config` shows what's in force. Every judgment is stored with the judge's name, its confidence, and the action taken (`relations/:scope`).
 
 Pick the judge with `TRUST_JUDGE`:
 
@@ -86,11 +86,11 @@ Pick the judge with `TRUST_JUDGE`:
 | `systemone` | Any `/v1/systemone` endpoint at `TRUST_JUDGE_URL`: a local Kev on Ollama or llama.cpp, hosted Jev, OpenRouter, LiteLLM. Model name in `TRUST_JUDGE_MODEL`; key, if needed, via `wrangler secret put TRUST_JUDGE_KEY` |
 | `heuristic` | Word overlap, negation, figures and change words. No network |
 
-**Unsure judgments go to the agent.** A judgment under 0.55 confidence (`TRUST_JUDGE_UNSURE_BELOW`), or one that would act but doesn't clear its bar, changes nothing. Instead, `memory_remember` returns an `unsure` note naming the other memory and the judge's reading. If a second model is configured (`TRUST_JUDGE_SECOND`, `TRUST_JUDGE_SECOND_MODEL`, and `TRUST_JUDGE_SECOND_URL`/`_KEY` for an endpoint), its reading is included too. The second opinion never acts on its own, because it can be as confidently wrong as the first. The agent checks the evidence and records its decision with `memory_relate`, which applies the same rules as a confident judge. Open notes show on the memory for every agent that recalls it until someone decides. On the Jev eval runs, 8 of 160 writes would have produced a note, and they covered all 6 of the misses that mattered.
+**Unsure judgments go to the agent.** A judgment under the model's unsure cutoff (0.55 for Jev, 0.25 for Clef-Flash; `TRUST_JUDGE_UNSURE_BELOW` overrides), or one that would act but doesn't clear its bar, changes nothing. Instead, `memory_remember` returns an `unsure` note naming the other memory and the judge's reading. If a second model is configured (`TRUST_JUDGE_SECOND`, `TRUST_JUDGE_SECOND_MODEL`, and `TRUST_JUDGE_SECOND_URL`/`_KEY` for an endpoint), its reading is included too. The second opinion never acts on its own, because it can be as confidently wrong as the first. The agent checks the evidence and records its decision with `memory_relate`, which applies the same rules as a confident judge. Open notes show on the memory for every agent that recalls it until someone decides. On the eval runs, Jev sent 8 of 160 writes back to the agent and Clef-Flash 19; between them those notes covered every miss that mattered but two.
 
 A model call that fails or takes longer than `TRUST_JUDGE_TIMEOUT_MS` (1,500 ms for Workers AI, 5,000 ms for a URL) falls back to the heuristic, and the judgment records why. A slow model never blocks a write. With Jev, memory text leaves Cloudflare; with Clef on Workers AI or a local Kev, it doesn't.
 
-`eval/` has 160 hand-labeled pairs (a core set and a hard set) and 12 scenario tasks for comparing judges and setting bars. So far: Jev scores 98% on the core set and passes every task; the heuristic scores 58% (core) and 48% (hard) with no wrong merges.
+`eval/` has 160 hand-labeled pairs (a core set and a hard set) and 12 scenario tasks for comparing judges and setting bars. So far: Jev, Clef and Clef-Flash all pick the right relation 90-98% of the time; with their own bars none made a wrong merge, retirement or conflict. Recommended setup: Clef-Flash as the judge, Jev as the second opinion.
 
 ## MCP
 

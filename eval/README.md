@@ -29,13 +29,22 @@ The hard line is between supersedes and contradicts. With no sign of change ("no
 
 ## Bars
 
-A judgment only changes something when its confidence clears the bar for its relation. Model judges default to duplicate 0.75, supersedes 0.7, contradicts 0.5. Those defaults come from the first Jev run: every correct supersede scored 0.80 or more, and two real contradictions scored 0.62 and 0.74. The heuristic keeps supersedes at 0.5, because its confidences are fixed numbers rather than probabilities, and it merges only identical text.
+A judgment only changes something when its confidence clears the bar for its relation. Each model has a profile (`PROFILES` in `src/judge.ts`):
 
-Override them per deployment with `TRUST_JUDGE_THRESHOLDS`, flat (`{"duplicate":0.8}`) or per judge (`{"workers-ai:clef-flash":{"supersedes":0.8}}`). The scorer reads the bars from the Worker and ends with a calibration table: how each bar performs, and the lowest bar above which every prediction was right. Set each model's bars from its own run.
+| Model | Duplicate | Supersedes | Contradicts | Unsure below |
+| --- | --- | --- | --- | --- |
+| Jev | 0.75 | 0.70 | 0.50 | 0.55 |
+| Clef | 0.60 | 0.55 | 0.25 | 0.35 |
+| Clef-Flash | 0.45 | 0.45 | 0.20 | 0.25 |
+| Anything else | 0.75 | 0.70 | 0.50 | 0.55 |
+
+The heuristic keeps supersedes at 0.5, because its confidences are fixed numbers rather than probabilities, and it merges only identical text.
+
+Override them per deployment with `TRUST_JUDGE_THRESHOLDS`, flat (`{"duplicate":0.8}`) or per judge (`{"workers-ai:clef-flash":{"supersedes":0.8,"unsure":0.3}}`); `TRUST_JUDGE_UNSURE_BELOW` sets the unsure cutoff for all judges. The scorer reads the bars from the Worker and ends with a calibration table: how each bar performs, and the lowest bar above which every prediction was right. Set each model's bars from its own run.
 
 ## The unsure band
 
-Judgments under 0.55, or under their relation's bar, don't act. They come back to the agent as notes, with a second model's reading if one is configured, and the agent decides. The scorer lists them as "sent to the agent as unsure" and shows which costly misses the agent was told about. On the Jev runs that's 8 of 160 pairs, covering all 6 misses that mattered: 2 contradictions read as refines at 0.50-0.51, a supersede at 0.52, and three merges skipped at 0.54-0.69.
+Judgments under the model's unsure cutoff, or that would act but miss their relation's bar, don't act. They come back to the agent as notes, with a second model's reading if one is configured, and the agent decides. The scorer lists them as "sent to the agent as unsure" and shows which costly misses the agent was told about. On the Jev runs that's 8 of 160 pairs, covering all 6 misses that mattered: 2 contradictions read as refines at 0.50-0.51, a supersede at 0.52, and three merges skipped at 0.54-0.69.
 
 ## Costly mistakes
 
@@ -77,21 +86,21 @@ A full run is 160 judge calls plus about 30 writes, roughly 60,000 input tokens.
 
 ## Results so far
 
-| Judge | Pair accuracy | Macro-F1 | Harmful merges | Missed conflicts | Tasks |
-| --- | --- | --- | --- | --- | --- |
-| Oracle (gold labels) | 100% | 100% | 0 | 0 | 12/12 |
-| Jev (`jev-latest`), core set | 98% | 98% | 0 | 0 | 12/12 |
-| Jev (`jev-latest`), hard set | 93% | 94% | 0 | 2 of 14 | |
-| Heuristic, core set | 58% | 56.5% | 0 | 12 of 20 | 8/12 |
-| Heuristic, hard set | 48% | 47% | 0 | 12 of 14 | |
-| Clef-Flash | not run yet | | | | |
-| Kev | not run yet | | | | |
+Runs from Nov 21, 2026, all 160 pairs plus the 12 tasks. "Own bars" are the model's profile in `src/judge.ts`, set from these runs.
 
-Jev's two misses were both labeled `refines` when gold said otherwise (one duplicate, one unrelated), and both in the preferences domain. Refines keeps both memories, so neither error changed anything stored. Median judge latency was 64 ms from a laptop to TypeSafe's API. A score this close to the oracle mostly says the set is too easy for a strong model: the next step is harder pairs and pairs from real traffic, not more tuning.
+| Judge | Correct relation, core / hard | Correct action, Jev's bars | Correct action, own bars | Wrong merges, retirements or conflicts | Sent to the agent | Median latency (from a laptop) |
+| --- | --- | --- | --- | --- | --- | --- |
+| Oracle (gold labels) | 100% / 100% | 100% | | 0 | 0 | |
+| Jev (`jev-latest`) | 98% / 93% | 96% | 96% | 0 | 8 | 56 ms |
+| Clef (Workers AI) | 92% / 97% | 75% | 89% | 0 | 21 | 151 ms |
+| Clef-Flash (Workers AI) | 97% / 90% | 52% | 88% | 0 | 19 | 116 ms |
+| Heuristic | 58% / 48% | | 54% | 0 | | 0 ms |
 
-The oracle passing everything shows that the write policy, the System One adapter and the task checks are consistent. The judge is the only thing left to measure.
+All three models pick the right relation about equally often. They differ in how confident they say they are: Jev's correct answers mostly come back at 0.9 or more, while Clef-Flash's correct contradictions come back at 0.08-0.51, because it spreads probability across all five relations. That is why each model needs its own bars. With them, none of the three made a wrong merge, retirement or conflict, and every miss that mattered came back to the agent as an unsure note (Clef-Flash: 17 of its 19 misses).
 
-The heuristic catches explicit changes and figure swaps (supersedes F1 86%) and almost never invents a relation between unrelated memories. It can't recognise paraphrases (duplicate recall 25%), so it rarely merges, which is the safe failure. It misses contradictions that don't use a negation word or a different number ("Delaware law" vs "New York law", "Thursday" vs "Monday"). Those two gaps are what a model judge is for.
+The profiles were chosen on the same pairs they are scored on, so treat "own bars" as optimistic; I left margin rather than taking the bars that scored best. A model that is not in the profile list (a new Kev build, say) gets the defaults until it has been scored.
+
+**Next question for the data:** for models like Clef-Flash, raw confidence may be the wrong gate. Runs now record each judgment's full probabilities and its lead over the runner-up, and the calibration table prints whether that lead separates right from wrong more cleanly than confidence does.
 
 ## Caveats
 

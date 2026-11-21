@@ -110,10 +110,19 @@ await test("the heuristic never clears the merge bar when figures differ or are 
   assert.notEqual(added.relation, "duplicate");
 });
 
-await test("thresholds: models default to supersede 0.7, the heuristic keeps its own bars", async () => {
+await test("thresholds: each model has its own profile; unknown models get the defaults", async () => {
   assert.equal(J.thresholdsFor("systemone:jev-latest").supersedes, 0.7);
-  assert.equal(J.thresholdsFor("workers-ai:clef-flash").duplicate, 0.75);
+  assert.equal(J.thresholdsFor("systemone:jev-1.13").duplicate, 0.75);
+  assert.equal(J.thresholdsFor("workers-ai:clef-flash").duplicate, 0.45);
+  assert.equal(J.thresholdsFor("systemone:clef-flash").contradicts, 0.2, "self-hosted Clef-Flash gets the same profile");
+  assert.equal(J.thresholdsFor("workers-ai:clef").supersedes, 0.55);
+  assert.equal(J.thresholdsFor("systemone:kev-4b").duplicate, 0.75, "not yet scored: defaults");
   assert.equal(J.thresholdsFor("heuristic").supersedes, 0.5);
+  assert.equal(J.unsureBelow({}, "workers-ai:clef-flash"), 0.25);
+  assert.equal(J.unsureBelow({}, "workers-ai:clef"), 0.35);
+  assert.equal(J.unsureBelow({}, "systemone:kev-4b"), 0.55);
+  assert.equal(J.unsureBelow({ TRUST_JUDGE_UNSURE_BELOW: "0.4" }, "workers-ai:clef-flash"), 0.4, "explicit setting wins");
+  assert.equal(J.unsureBelow({ TRUST_JUDGE_THRESHOLDS: JSON.stringify({ "workers-ai:clef-flash": { unsure: 0.3 } }) }, "workers-ai:clef-flash"), 0.3);
 });
 
 await test("thresholds: overrides apply flat or per judge, and bad values are ignored", async () => {
@@ -121,7 +130,8 @@ await test("thresholds: overrides apply flat or per judge, and bad values are ig
   assert.equal(J.thresholdsFor("systemone:kev-4b", env).duplicate, 0.8);
   assert.equal(J.thresholdsFor("systemone:kev-4b", env).supersedes, 0.7);
   assert.equal(J.thresholdsFor("workers-ai:clef-flash", env).supersedes, 0.85);
-  assert.equal(J.thresholdsFor("workers-ai:clef-flash", env).contradicts, 0.5, "out-of-range value falls back");
+  assert.equal(J.thresholdsFor("workers-ai:clef-flash", env).contradicts, 0.2, "out-of-range value falls back to the profile");
+  assert.equal(J.thresholdsFor("workers-ai:clef-flash", env).duplicate, 0.8, "flat override beats the profile");
   assert.equal(J.thresholdsFor("heuristic", env).duplicate, 0.75, "overrides never touch the heuristic");
   assert.equal(J.thresholdsFor("systemone:x", { TRUST_JUDGE_THRESHOLDS: "{not json" }).supersedes, 0.7);
 });
@@ -136,6 +146,8 @@ await test("unsure: low confidence, or an action that didn't clear its bar", asy
   assert.equal(J.isUnsure(j("unrelated", 0.9)), false);
   assert.equal(J.isUnsure(j("contradicts", 0.6)), false, "cleared its bar: acted on, not unsure");
   assert.equal(J.isUnsure(j("refines", 0.6), { TRUST_JUDGE_UNSURE_BELOW: "0.7" }), true);
+  assert.equal(J.isUnsure(j("contradicts", 0.22, "workers-ai:clef-flash")), false, "clears Clef-Flash's 0.20 bar");
+  assert.equal(J.isUnsure(j("contradicts", 0.15, "workers-ai:clef-flash")), true);
 });
 
 await test("second opinion: built from its own settings, never the heuristic", async () => {
@@ -144,6 +156,13 @@ await test("second opinion: built from its own settings, never the heuristic", a
   assert.equal(J.makeSecondJudge({ TRUST_JUDGE_SECOND: "workers-ai", AI: ai, TRUST_JUDGE_SECOND_MODEL: "@cf/cloudflare/clef" }).name, "workers-ai:clef");
   assert.equal(J.makeSecondJudge({ TRUST_JUDGE_SECOND: "systemone", TRUST_JUDGE_SECOND_URL: base, TRUST_JUDGE_SECOND_MODEL: "jev-latest" }).name, "systemone:jev-latest");
   assert.equal(J.makeSecondJudge({ TRUST_JUDGE_SECOND: "workers-ai" }), null, "no binding: no second opinion");
+});
+
+await test("resolveJudge warns when the requested judge can't be built", async () => {
+  assert.match(J.resolveJudge({ TRUST_JUDGE: "workers-ai" }).warning, /no Workers AI binding/);
+  assert.match(J.resolveJudge({ TRUST_JUDGE: "systemone" }).warning, /TRUST_JUDGE_URL/);
+  assert.equal(J.resolveJudge({}).warning, null, "auto with nothing configured is a quiet heuristic");
+  assert.equal(J.resolveJudge({ TRUST_JUDGE: "workers-ai", AI: { run: async () => ({}) } }).warning, null);
 });
 
 server.close();

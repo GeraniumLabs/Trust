@@ -69,10 +69,15 @@ async function scorePairs(file) {
     const t0 = Date.now();
     const [j] = await api("POST", `/demo/${demo}/judge`, { newer: { ...p.newer, sources: p.newer.sources }, older: [{ ...p.older, sources: p.older.sources }] });
     const acted = j.confidence >= barFor(j) ? ACTION[j.relation] : "keep";
+    // How far the top answer leads the runner-up: a possible better gate than raw confidence for
+    // models that spread probability across all five relations.
+    const sorted = Object.values(j.probabilities ?? {}).map(Number).sort((a, b) => b - a);
+    const margin = sorted.length > 1 ? Math.round((sorted[0] - sorted[1]) * 10000) / 10000 : null;
     const actionable = ["duplicate", "supersedes", "contradicts"].includes(j.relation);
     // Same rule as the Scope: only judgments Trust didn't act on become notes for the agent.
-    const unsure = acted === "keep" && (j.confidence < BARS.unsureBelow || (actionable && j.confidence < barFor(j)));
-    return { id: p.id, domain: p.domain, difficulty: p.difficulty, trap: p.trap ?? null, gold: p.label, pred: j.relation, confidence: j.confidence, judge: j.judge, fallback: j.fallback ?? null, judgeMs: j.ms, roundTripMs: Date.now() - t0, goldAction: ACTION[p.label], action: acted, unsure };
+    const unsureAt = j.judge === "heuristic" ? BARS.fallbackUnsureBelow ?? 0.55 : BARS.unsureBelow;
+    const unsure = acted === "keep" && (j.confidence < unsureAt || (actionable && j.confidence < barFor(j)));
+    return { id: p.id, domain: p.domain, difficulty: p.difficulty, trap: p.trap ?? null, gold: p.label, pred: j.relation, confidence: j.confidence, judge: j.judge, fallback: j.fallback ?? null, judgeMs: j.ms, roundTripMs: Date.now() - t0, goldAction: ACTION[p.label], action: acted, unsure, margin, probabilities: j.probabilities ?? null };
   });
 
   const confusion = Object.fromEntries(LABELS.map((g) => [g, Object.fromEntries(LABELS.map((p) => [p, 0]))]));
@@ -157,7 +162,15 @@ function calibrate(results) {
     const worstWrong = Math.max(-Infinity, ...preds.filter((r) => r.gold !== rel).map((r) => r.confidence));
     const lowestRight = Math.min(Infinity, ...preds.filter((r) => r.gold === rel).map((r) => r.confidence));
     const safe = Number.isFinite(worstWrong) ? Math.min(1, Math.round((worstWrong + 0.01) * 100) / 100) : Number.isFinite(lowestRight) ? lowestRight : bar;
-    out[rel] = { bar, atBar: at(bar), safeBar: safe, atSafe: at(safe), wrongAbove: preds.filter((r) => r.gold !== rel).map((r) => `${r.id}@${r.confidence}`) };
+    const margins = (f) => preds.filter(f).map((r) => r.margin).filter((m) => m != null);
+    const rightM = margins((r) => r.gold === rel);
+    const wrongM = margins((r) => r.gold !== rel);
+    out[rel] = {
+      bar, atBar: at(bar), safeBar: safe, atSafe: at(safe),
+      wrongAbove: preds.filter((r) => r.gold !== rel).map((r) => `${r.id}@${r.confidence}`),
+      // Does the lead over the runner-up separate right from wrong better than confidence?
+      margin: rightM.length ? { rightMin: Math.min(...rightM), wrongMax: wrongM.length ? Math.max(...wrongM) : null } : null,
+    };
   }
   return out;
 }
@@ -168,6 +181,7 @@ function printCalibration(c) {
     console.log(`  ${rel.padEnd(12)} bar ${x.bar.toFixed(2)}: precision ${pct(x.atBar.precision)}, recall ${pct(x.atBar.recall)}` +
       `   |  every prediction right at ${x.safeBar.toFixed(2)}+ (recall ${pct(x.atSafe.recall)})` +
       (x.wrongAbove.length ? `   wrong: ${x.wrongAbove.join(" ")}` : ""));
+    if (x.margin) console.log(`  ${"".padEnd(12)} lead over runner-up: right ones >= ${x.margin.rightMin.toFixed(2)}, wrong ones <= ${x.margin.wrongMax == null ? "none" : x.margin.wrongMax.toFixed(2)}`);
   }
 }
 
@@ -252,6 +266,13 @@ if (!flag("--tasks-only")) {
   BARS = await api("GET", `/demo/${demo}/judge-config`);
   report.bars = BARS;
   BARS.unsureBelow ??= 0.55;
+  if (BARS.warning) {
+    console.log(`\n⚠ ${BARS.warning}\n`);
+    if (!flag("--allow-heuristic")) {
+      console.log("Stopping so this isn't saved as a model run. Fix the setting, or pass --allow-heuristic to score anyway.");
+      process.exit(1);
+    }
+  }
   console.log(`Judge ${BARS.judge}${BARS.second ? ` (second opinion ${BARS.second})` : ""}; unsure below ${BARS.unsureBelow}; bars ${Object.entries(BARS.thresholds).map(([k, v]) => `${k} ${v}`).join(", ")}`);
   const sets = opt("--set") ? [opt("--set")] : Object.keys(SETS);
   const all = [];

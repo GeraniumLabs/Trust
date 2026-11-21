@@ -61,19 +61,44 @@ export interface JudgeEnv {
 }
 
 // ---------- thresholds ----------
-// A judgment changes nothing unless its confidence clears the bar for its relation.
-// Duplicates have the highest bar: a merge folds one write into another, the costliest mistake.
-// Supersedes is next: retiring a memory that is still true. The defaults come from the first Jev
-// run (eval/results/jev.json): every correct supersede scored 0.80+, and two real contradictions
-// scored 0.62 and 0.74, so contradicts stays at 0.5. Each model should be re-checked against its
-// own eval run; `node eval/score.mjs` prints a suggested bar per relation.
+// A judgment changes nothing unless its confidence clears the bar for its relation. Duplicates
+// have the highest bar in principle (a merge folds one write into another, the costliest
+// mistake), then supersedes (retiring a memory that is still true).
+//
+// Models report confidence very differently, so each has its own profile, set from its own eval
+// run (eval/results/*.json, Nov 21 2026). Jev is confident; Clef and Clef-Flash pick the right
+// relation about as often but spread probability across all five, so their bars sit lower. In
+// every run below, no wrong duplicate, supersede or contradiction cleared these bars.
 export type Thresholds = Record<"duplicate" | "contradicts" | "supersedes" | "refines", number>;
+export interface Profile extends Thresholds {
+  unsure: number; // judgments under this go to the agent as unsure notes
+}
 export const MODEL_THRESHOLDS: Thresholds = { duplicate: 0.75, contradicts: 0.5, supersedes: 0.7, refines: 0.5 };
 // The heuristic's confidences are fixed constants, not probabilities, so it keeps its own bars.
 export const HEURISTIC_THRESHOLDS: Thresholds = { duplicate: 0.75, contradicts: 0.5, supersedes: 0.5, refines: 0.5 };
+const DEFAULT_UNSURE = 0.55;
 
-export function thresholdsFor(judge: string, env: Pick<JudgeEnv, "TRUST_JUDGE_THRESHOLDS"> = {}): Thresholds {
-  if (judge === "heuristic") return HEURISTIC_THRESHOLDS;
+export const PROFILES: Record<string, Profile> = {
+  // jev-latest: 96% correct actions at these bars, 8 of 160 sent to the agent.
+  jev: { ...MODEL_THRESHOLDS, unsure: 0.55 },
+  // Clef (27B): wrong supersedes all <= 0.47, correct >= 0.60; no wrong duplicates or
+  // contradictions at any confidence. 89% correct actions, 21 of 160 sent to the agent.
+  clef: { duplicate: 0.6, supersedes: 0.55, contradicts: 0.25, refines: 0.5, unsure: 0.35 },
+  // Clef-Flash: wrong supersedes all <= 0.36, correct >= 0.42; no wrong duplicates or
+  // contradictions. 88% correct actions, 19 of 160 sent to the agent.
+  "clef-flash": { duplicate: 0.45, supersedes: 0.45, contradicts: 0.2, refines: 0.5, unsure: 0.25 },
+};
+
+// "workers-ai:clef-flash", "systemone:clef-flash" (self-hosted) -> clef-flash; "systemone:jev-1.13" -> jev.
+export function profileFor(judge: string): Profile | null {
+  const model = (judge.split(":")[1] ?? "").toLowerCase();
+  if (model.startsWith("jev")) return PROFILES.jev;
+  if (model.startsWith("clef-flash")) return PROFILES["clef-flash"];
+  if (model === "clef" || model.startsWith("clef-")) return PROFILES.clef;
+  return null;
+}
+
+function overridesFor(judge: string, env: Pick<JudgeEnv, "TRUST_JUDGE_THRESHOLDS">): Record<string, number> {
   let over: Record<string, unknown> = {};
   try {
     over = env.TRUST_JUDGE_THRESHOLDS ? JSON.parse(env.TRUST_JUDGE_THRESHOLDS) : {};
@@ -81,10 +106,20 @@ export function thresholdsFor(judge: string, env: Pick<JudgeEnv, "TRUST_JUDGE_TH
     over = {}; // a malformed override never blocks writes
   }
   const flat = Object.fromEntries(Object.entries(over).filter(([, v]) => typeof v === "number"));
-  const keyed = (over[judge] && typeof over[judge] === "object" ? over[judge] : {}) as Record<string, number>;
-  const out = { ...MODEL_THRESHOLDS, ...flat, ...keyed } as Thresholds;
-  for (const k of Object.keys(out) as (keyof Thresholds)[]) if (typeof out[k] !== "number" || out[k] < 0 || out[k] > 1) out[k] = MODEL_THRESHOLDS[k];
+  const keyed = over[judge] && typeof over[judge] === "object" ? (over[judge] as Record<string, number>) : {};
+  const merged: Record<string, unknown> = { ...flat, ...keyed };
+  const out: Record<string, number> = {};
+  for (const [k, v] of Object.entries(merged)) if (typeof v === "number" && v >= 0 && v <= 1) out[k] = v;
   return out;
+}
+
+export function thresholdsFor(judge: string, env: Pick<JudgeEnv, "TRUST_JUDGE_THRESHOLDS"> = {}): Thresholds {
+  if (judge === "heuristic") return HEURISTIC_THRESHOLDS; // overrides never touch the heuristic
+  const base: Thresholds = { ...MODEL_THRESHOLDS, ...(profileFor(judge) ?? {}) };
+  const over = overridesFor(judge, env);
+  const out = { ...base };
+  for (const k of Object.keys(MODEL_THRESHOLDS) as (keyof Thresholds)[]) if (k in over) out[k] = over[k];
+  return { duplicate: out.duplicate, contradicts: out.contradicts, supersedes: out.supersedes, refines: out.refines };
 }
 
 // ---------- heuristic ----------
@@ -268,15 +303,25 @@ export class SystemOneJudge extends ModelJudge {
 // ---------- unsure judgments ----------
 // Every miss that mattered in the Jev eval came in at 0.50-0.54. Below the bar Trust does nothing
 // automatically; the agent gets the judgment (and a second opinion, if configured) and decides.
-export function unsureBelow(env: Pick<JudgeEnv, "TRUST_JUDGE_UNSURE_BELOW"> = {}) {
+// Order: TRUST_JUDGE_UNSURE_BELOW, then an "unsure" key in TRUST_JUDGE_THRESHOLDS, then the
+// model's profile, then 0.55.
+export function unsureBelow(env: Pick<JudgeEnv, "TRUST_JUDGE_UNSURE_BELOW" | "TRUST_JUDGE_THRESHOLDS"> = {}, judge = "") {
   const v = Number(env.TRUST_JUDGE_UNSURE_BELOW);
-  return Number.isFinite(v) && v > 0 && v <= 1 ? v : 0.55;
+  if (env.TRUST_JUDGE_UNSURE_BELOW && Number.isFinite(v) && v > 0 && v <= 1) return v;
+  if (judge && judge !== "heuristic") {
+    const over = overridesFor(judge, env);
+    if ("unsure" in over) return over.unsure;
+    const p = profileFor(judge);
+    if (p) return p.unsure;
+  }
+  return DEFAULT_UNSURE;
 }
 
 export function isUnsure(j: Judgment, env: JudgeEnv = {}) {
-  if (j.confidence < unsureBelow(env)) return true;
-  const bar = thresholdsFor(j.judge, env)[j.relation as keyof Thresholds];
-  return bar !== undefined && j.relation !== "refines" && j.confidence < bar; // would act, but didn't clear the bar
+  const bar = j.relation === "refines" || j.relation === "unrelated" ? undefined : thresholdsFor(j.judge, env)[j.relation as keyof Thresholds];
+  if (bar !== undefined && j.confidence >= bar) return false; // cleared its bar: Trust acts on it
+  if (bar !== undefined) return true; // would act, but didn't clear the bar
+  return j.confidence < unsureBelow(env, j.judge);
 }
 
 export function makeSecondJudge(env: JudgeEnv): Judge | null {
@@ -295,10 +340,20 @@ export function makeSecondJudge(env: JudgeEnv): Judge | null {
 // auto: Clef-Flash when the Workers AI binding exists, otherwise a System One URL if set,
 // otherwise the heuristic.
 export function makeJudge(env: JudgeEnv): Judge {
+  return resolveJudge(env).judge;
+}
+
+// Like makeJudge, but also says when the judge in use isn't the one that was asked for, so a
+// missing binding or URL can't silently turn a model run into a heuristic run.
+export function resolveJudge(env: JudgeEnv): { judge: Judge; requested: string; warning: string | null } {
   const mode = (env.TRUST_JUDGE || "auto").toLowerCase();
   const timeout = env.TRUST_JUDGE_TIMEOUT_MS ? Number(env.TRUST_JUDGE_TIMEOUT_MS) : undefined;
-  if (mode === "heuristic") return new HeuristicJudge();
-  if ((mode === "workers-ai" || mode === "auto") && env.AI) return new WorkersAIJudge(env.AI, env.TRUST_JUDGE_MODEL || "@cf/cloudflare/clef-flash", timeout ?? 1500);
-  if ((mode === "systemone" || mode === "auto") && env.TRUST_JUDGE_URL) return new SystemOneJudge(env.TRUST_JUDGE_URL, env.TRUST_JUDGE_MODEL || "kev-4b", env.TRUST_JUDGE_KEY, timeout ?? 5000);
-  return new HeuristicJudge();
+  const pick = (judge: Judge, warning: string | null = null) => ({ judge, requested: mode, warning });
+  if (mode === "heuristic") return pick(new HeuristicJudge());
+  if ((mode === "workers-ai" || mode === "auto") && env.AI) return pick(new WorkersAIJudge(env.AI, env.TRUST_JUDGE_MODEL || "@cf/cloudflare/clef-flash", timeout ?? 1500));
+  if ((mode === "systemone" || mode === "auto") && env.TRUST_JUDGE_URL) return pick(new SystemOneJudge(env.TRUST_JUDGE_URL, env.TRUST_JUDGE_MODEL || "kev-4b", env.TRUST_JUDGE_KEY, timeout ?? 5000));
+  if (mode === "workers-ai") return pick(new HeuristicJudge(), "TRUST_JUDGE=workers-ai but there is no Workers AI binding (AI). Run `npm run dev`, not `dev:offline`, and check wrangler.jsonc has the ai binding. Using the heuristic.");
+  if (mode === "systemone") return pick(new HeuristicJudge(), "TRUST_JUDGE=systemone but TRUST_JUDGE_URL is not set. Using the heuristic.");
+  if (mode !== "auto") return pick(new HeuristicJudge(), `Unknown TRUST_JUDGE "${mode}". Using the heuristic.`);
+  return pick(new HeuristicJudge());
 }

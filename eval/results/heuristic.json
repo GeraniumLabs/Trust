@@ -1,8 +1,10 @@
 {
   "base": "http://localhost:8787",
-  "at": "2026-11-21T14:21:23.819Z",
+  "at": "2026-11-21T16:09:00.484Z",
   "bars": {
     "judge": "heuristic",
+    "requested": "auto",
+    "warning": null,
     "thresholds": {
       "duplicate": 0.75,
       "contradicts": 0.5,
@@ -14,7 +16,10 @@
       "contradicts": 0.5,
       "supersedes": 0.5,
       "refines": 0.5
-    }
+    },
+    "unsureBelow": 0.55,
+    "fallbackUnsureBelow": 0.55,
+    "second": null
   },
   "pairs": {
     "summary": {
@@ -52,6 +57,61 @@
         "unr-08",
         "unr-14"
       ],
+      "sentToAgent": [
+        "dup-07",
+        "dup-10",
+        "dup-12",
+        "dup-18",
+        "dup-19",
+        "dup-20",
+        "ref-14",
+        "con-03",
+        "con-04",
+        "con-05",
+        "con-06",
+        "con-09",
+        "con-11",
+        "con-12",
+        "con-18",
+        "con-19",
+        "unr-11",
+        "unr-12"
+      ],
+      "sentToAgentUseful": [
+        "dup-07",
+        "dup-10",
+        "dup-12",
+        "dup-18",
+        "dup-19",
+        "dup-20",
+        "ref-14",
+        "con-03",
+        "con-04",
+        "con-05",
+        "con-06",
+        "con-09",
+        "con-11",
+        "con-12",
+        "con-18",
+        "con-19"
+      ],
+      "costlyMissesFlagged": [
+        "dup-07",
+        "dup-10",
+        "dup-12",
+        "dup-18",
+        "dup-19",
+        "dup-20",
+        "con-03",
+        "con-04",
+        "con-05",
+        "con-06",
+        "con-09",
+        "con-11",
+        "con-12",
+        "con-18",
+        "con-19"
+      ],
       "fallbacks": 0,
       "fallbackReasons": [],
       "byDifficulty": {
@@ -70,8 +130,8 @@
       },
       "latencyMs": {
         "judgeP50": 0,
-        "judgeP95": 0,
-        "roundTripP50": 26
+        "judgeP95": 1,
+        "roundTripP50": 31
       }
     },
     "perLabel": {
@@ -155,9 +215,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 35,
+        "roundTripMs": 44,
         "goldAction": "merge",
-        "action": "keep"
+        "action": "keep",
+        "unsure": false,
+        "margin": 0.4375,
+        "probabilities": {
+          "duplicate": 0.11249999999999999,
+          "refines": 0.55,
+          "supersedes": 0.11249999999999999,
+          "contradicts": 0.11249999999999999,
+          "unrelated": 0.11249999999999999
+        }
       },
       {
         "id": "dup-02",
@@ -170,9 +239,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 55,
+        "roundTripMs": 71,
         "goldAction": "merge",
-        "action": "keep"
+        "action": "keep",
+        "unsure": false,
+        "margin": 0.7687,
+        "probabilities": {
+          "duplicate": 0.04625000000000001,
+          "refines": 0.04625000000000001,
+          "supersedes": 0.04625000000000001,
+          "contradicts": 0.04625000000000001,
+          "unrelated": 0.815
+        }
       },
       {
         "id": "dup-03",
@@ -185,9 +263,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 54,
+        "roundTripMs": 76,
         "goldAction": "merge",
-        "action": "keep"
+        "action": "keep",
+        "unsure": false,
+        "margin": 0.4375,
+        "probabilities": {
+          "duplicate": 0.11249999999999999,
+          "refines": 0.55,
+          "supersedes": 0.11249999999999999,
+          "contradicts": 0.11249999999999999,
+          "unrelated": 0.11249999999999999
+        }
       },
       {
         "id": "dup-04",
@@ -200,9 +287,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 60,
+        "roundTripMs": 72,
         "goldAction": "merge",
-        "action": "conflict"
+        "action": "conflict",
+        "unsure": false,
+        "margin": 0.4375,
+        "probabilities": {
+          "duplicate": 0.11249999999999999,
+          "refines": 0.11249999999999999,
+          "supersedes": 0.11249999999999999,
+          "contradicts": 0.55,
+          "unrelated": 0.11249999999999999
+        }
       },
       {
         "id": "dup-05",
@@ -215,9 +311,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 33,
+        "roundTripMs": 47,
         "goldAction": "merge",
-        "action": "conflict"
+        "action": "conflict",
+        "unsure": false,
+        "margin": 0.4375,
+        "probabilities": {
+          "duplicate": 0.11249999999999999,
+          "refines": 0.11249999999999999,
+          "supersedes": 0.11249999999999999,
+          "contradicts": 0.55,
+          "unrelated": 0.11249999999999999
+        }
       },
       {
         "id": "dup-06",
@@ -230,9 +335,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 24,
+        "roundTripMs": 29,
         "goldAction": "merge",
-        "action": "keep"
+        "action": "keep",
+        "unsure": false,
+        "margin": 0.4375,
+        "probabilities": {
+          "duplicate": 0.11249999999999999,
+          "refines": 0.55,
+          "supersedes": 0.11249999999999999,
+          "contradicts": 0.11249999999999999,
+          "unrelated": 0.11249999999999999
+        }
       },
       {
         "id": "dup-07",
@@ -245,9 +359,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 24,
+        "roundTripMs": 51,
         "goldAction": "merge",
-        "action": "keep"
+        "action": "keep",
+        "unsure": true,
+        "margin": 0.3125,
+        "probabilities": {
+          "duplicate": 0.1375,
+          "refines": 0.1375,
+          "supersedes": 0.1375,
+          "contradicts": 0.1375,
+          "unrelated": 0.45
+        }
       },
       {
         "id": "dup-08",
@@ -260,9 +383,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 27,
+        "roundTripMs": 50,
         "goldAction": "merge",
-        "action": "conflict"
+        "action": "conflict",
+        "unsure": false,
+        "margin": 0.4375,
+        "probabilities": {
+          "duplicate": 0.11249999999999999,
+          "refines": 0.11249999999999999,
+          "supersedes": 0.11249999999999999,
+          "contradicts": 0.55,
+          "unrelated": 0.11249999999999999
+        }
       },
       {
         "id": "dup-09",
@@ -275,9 +407,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 21,
+        "roundTripMs": 37,
         "goldAction": "merge",
-        "action": "conflict"
+        "action": "conflict",
+        "unsure": false,
+        "margin": 0.4375,
+        "probabilities": {
+          "duplicate": 0.11249999999999999,
+          "refines": 0.11249999999999999,
+          "supersedes": 0.11249999999999999,
+          "contradicts": 0.55,
+          "unrelated": 0.11249999999999999
+        }
       },
       {
         "id": "dup-10",
@@ -290,9 +431,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 20,
+        "roundTripMs": 40,
         "goldAction": "merge",
-        "action": "keep"
+        "action": "keep",
+        "unsure": true,
+        "margin": 0.3125,
+        "probabilities": {
+          "duplicate": 0.1375,
+          "refines": 0.1375,
+          "supersedes": 0.1375,
+          "contradicts": 0.1375,
+          "unrelated": 0.45
+        }
       },
       {
         "id": "dup-11",
@@ -305,9 +455,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 21,
+        "roundTripMs": 45,
         "goldAction": "merge",
-        "action": "keep"
+        "action": "keep",
+        "unsure": false,
+        "margin": 0.4375,
+        "probabilities": {
+          "duplicate": 0.11249999999999999,
+          "refines": 0.55,
+          "supersedes": 0.11249999999999999,
+          "contradicts": 0.11249999999999999,
+          "unrelated": 0.11249999999999999
+        }
       },
       {
         "id": "dup-12",
@@ -319,10 +478,19 @@
         "confidence": 0.7,
         "judge": "heuristic",
         "fallback": null,
-        "judgeMs": 0,
-        "roundTripMs": 23,
+        "judgeMs": 1,
+        "roundTripMs": 44,
         "goldAction": "merge",
-        "action": "keep"
+        "action": "keep",
+        "unsure": true,
+        "margin": 0.625,
+        "probabilities": {
+          "duplicate": 0.7,
+          "refines": 0.07500000000000001,
+          "supersedes": 0.07500000000000001,
+          "contradicts": 0.07500000000000001,
+          "unrelated": 0.07500000000000001
+        }
       },
       {
         "id": "dup-13",
@@ -335,9 +503,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 24,
+        "roundTripMs": 45,
         "goldAction": "merge",
-        "action": "keep"
+        "action": "keep",
+        "unsure": false,
+        "margin": 0.5679,
+        "probabilities": {
+          "duplicate": 0.08642857142857141,
+          "refines": 0.08642857142857141,
+          "supersedes": 0.08642857142857141,
+          "contradicts": 0.08642857142857141,
+          "unrelated": 0.6542857142857144
+        }
       },
       {
         "id": "dup-14",
@@ -349,10 +526,19 @@
         "confidence": 0.55,
         "judge": "heuristic",
         "fallback": null,
-        "judgeMs": 1,
-        "roundTripMs": 23,
+        "judgeMs": 0,
+        "roundTripMs": 38,
         "goldAction": "merge",
-        "action": "keep"
+        "action": "keep",
+        "unsure": false,
+        "margin": 0.4375,
+        "probabilities": {
+          "duplicate": 0.11249999999999999,
+          "refines": 0.55,
+          "supersedes": 0.11249999999999999,
+          "contradicts": 0.11249999999999999,
+          "unrelated": 0.11249999999999999
+        }
       },
       {
         "id": "dup-15",
@@ -365,9 +551,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 25,
+        "roundTripMs": 38,
         "goldAction": "merge",
-        "action": "keep"
+        "action": "keep",
+        "unsure": false,
+        "margin": 0.5679,
+        "probabilities": {
+          "duplicate": 0.08642857142857141,
+          "refines": 0.08642857142857141,
+          "supersedes": 0.08642857142857141,
+          "contradicts": 0.08642857142857141,
+          "unrelated": 0.6542857142857144
+        }
       },
       {
         "id": "dup-16",
@@ -380,9 +575,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 29,
+        "roundTripMs": 37,
         "goldAction": "merge",
-        "action": "keep"
+        "action": "keep",
+        "unsure": false,
+        "margin": 0.4375,
+        "probabilities": {
+          "duplicate": 0.11249999999999999,
+          "refines": 0.55,
+          "supersedes": 0.11249999999999999,
+          "contradicts": 0.11249999999999999,
+          "unrelated": 0.11249999999999999
+        }
       },
       {
         "id": "dup-17",
@@ -395,9 +599,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 29,
+        "roundTripMs": 37,
         "goldAction": "merge",
-        "action": "keep"
+        "action": "keep",
+        "unsure": false,
+        "margin": 0.4375,
+        "probabilities": {
+          "duplicate": 0.11249999999999999,
+          "refines": 0.55,
+          "supersedes": 0.11249999999999999,
+          "contradicts": 0.11249999999999999,
+          "unrelated": 0.11249999999999999
+        }
       },
       {
         "id": "dup-18",
@@ -410,9 +623,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 29,
+        "roundTripMs": 36,
         "goldAction": "merge",
-        "action": "keep"
+        "action": "keep",
+        "unsure": true,
+        "margin": 0.625,
+        "probabilities": {
+          "duplicate": 0.7,
+          "refines": 0.07500000000000001,
+          "supersedes": 0.07500000000000001,
+          "contradicts": 0.07500000000000001,
+          "unrelated": 0.07500000000000001
+        }
       },
       {
         "id": "dup-19",
@@ -425,9 +647,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 28,
+        "roundTripMs": 17,
         "goldAction": "merge",
-        "action": "keep"
+        "action": "keep",
+        "unsure": true,
+        "margin": 0.625,
+        "probabilities": {
+          "duplicate": 0.7,
+          "refines": 0.07500000000000001,
+          "supersedes": 0.07500000000000001,
+          "contradicts": 0.07500000000000001,
+          "unrelated": 0.07500000000000001
+        }
       },
       {
         "id": "dup-20",
@@ -440,9 +671,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 29,
+        "roundTripMs": 39,
         "goldAction": "merge",
-        "action": "keep"
+        "action": "keep",
+        "unsure": true,
+        "margin": 0.625,
+        "probabilities": {
+          "duplicate": 0.7,
+          "refines": 0.07500000000000001,
+          "supersedes": 0.07500000000000001,
+          "contradicts": 0.07500000000000001,
+          "unrelated": 0.07500000000000001
+        }
       },
       {
         "id": "ref-01",
@@ -455,9 +695,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 28,
+        "roundTripMs": 39,
         "goldAction": "keep",
-        "action": "keep"
+        "action": "keep",
+        "unsure": false,
+        "margin": 0.4375,
+        "probabilities": {
+          "duplicate": 0.11249999999999999,
+          "refines": 0.55,
+          "supersedes": 0.11249999999999999,
+          "contradicts": 0.11249999999999999,
+          "unrelated": 0.11249999999999999
+        }
       },
       {
         "id": "ref-02",
@@ -470,9 +719,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 32,
+        "roundTripMs": 33,
         "goldAction": "keep",
-        "action": "keep"
+        "action": "keep",
+        "unsure": false,
+        "margin": 0.6125,
+        "probabilities": {
+          "duplicate": 0.07750000000000001,
+          "refines": 0.07750000000000001,
+          "supersedes": 0.07750000000000001,
+          "contradicts": 0.07750000000000001,
+          "unrelated": 0.69
+        }
       },
       {
         "id": "ref-03",
@@ -485,9 +743,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 33,
+        "roundTripMs": 29,
         "goldAction": "keep",
-        "action": "keep"
+        "action": "keep",
+        "unsure": false,
+        "margin": 0.4375,
+        "probabilities": {
+          "duplicate": 0.11249999999999999,
+          "refines": 0.55,
+          "supersedes": 0.11249999999999999,
+          "contradicts": 0.11249999999999999,
+          "unrelated": 0.11249999999999999
+        }
       },
       {
         "id": "ref-04",
@@ -499,10 +766,19 @@
         "confidence": 0.55,
         "judge": "heuristic",
         "fallback": null,
-        "judgeMs": 0,
-        "roundTripMs": 26,
+        "judgeMs": 1,
+        "roundTripMs": 18,
         "goldAction": "keep",
-        "action": "keep"
+        "action": "keep",
+        "unsure": false,
+        "margin": 0.4375,
+        "probabilities": {
+          "duplicate": 0.11249999999999999,
+          "refines": 0.55,
+          "supersedes": 0.11249999999999999,
+          "contradicts": 0.11249999999999999,
+          "unrelated": 0.11249999999999999
+        }
       },
       {
         "id": "ref-05",
@@ -515,9 +791,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 26,
+        "roundTripMs": 39,
         "goldAction": "keep",
-        "action": "conflict"
+        "action": "conflict",
+        "unsure": false,
+        "margin": 0.4375,
+        "probabilities": {
+          "duplicate": 0.11249999999999999,
+          "refines": 0.11249999999999999,
+          "supersedes": 0.11249999999999999,
+          "contradicts": 0.55,
+          "unrelated": 0.11249999999999999
+        }
       },
       {
         "id": "ref-06",
@@ -530,9 +815,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 33,
+        "roundTripMs": 38,
         "goldAction": "keep",
-        "action": "keep"
+        "action": "keep",
+        "unsure": false,
+        "margin": 0.4375,
+        "probabilities": {
+          "duplicate": 0.11249999999999999,
+          "refines": 0.55,
+          "supersedes": 0.11249999999999999,
+          "contradicts": 0.11249999999999999,
+          "unrelated": 0.11249999999999999
+        }
       },
       {
         "id": "ref-07",
@@ -545,9 +839,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 32,
+        "roundTripMs": 31,
         "goldAction": "keep",
-        "action": "keep"
+        "action": "keep",
+        "unsure": false,
+        "margin": 0.55,
+        "probabilities": {
+          "duplicate": 0.09,
+          "refines": 0.09,
+          "supersedes": 0.09,
+          "contradicts": 0.09,
+          "unrelated": 0.64
+        }
       },
       {
         "id": "ref-08",
@@ -560,9 +863,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 35,
+        "roundTripMs": 27,
         "goldAction": "keep",
-        "action": "keep"
+        "action": "keep",
+        "unsure": false,
+        "margin": 0.4375,
+        "probabilities": {
+          "duplicate": 0.11249999999999999,
+          "refines": 0.55,
+          "supersedes": 0.11249999999999999,
+          "contradicts": 0.11249999999999999,
+          "unrelated": 0.11249999999999999
+        }
       },
       {
         "id": "ref-09",
@@ -575,9 +887,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 35,
+        "roundTripMs": 30,
         "goldAction": "keep",
-        "action": "conflict"
+        "action": "conflict",
+        "unsure": false,
+        "margin": 0.4375,
+        "probabilities": {
+          "duplicate": 0.11249999999999999,
+          "refines": 0.11249999999999999,
+          "supersedes": 0.11249999999999999,
+          "contradicts": 0.55,
+          "unrelated": 0.11249999999999999
+        }
       },
       {
         "id": "ref-10",
@@ -589,10 +910,19 @@
         "confidence": 0.55,
         "judge": "heuristic",
         "fallback": null,
-        "judgeMs": 0,
-        "roundTripMs": 29,
+        "judgeMs": 1,
+        "roundTripMs": 32,
         "goldAction": "keep",
-        "action": "keep"
+        "action": "keep",
+        "unsure": false,
+        "margin": 0.4375,
+        "probabilities": {
+          "duplicate": 0.11249999999999999,
+          "refines": 0.55,
+          "supersedes": 0.11249999999999999,
+          "contradicts": 0.11249999999999999,
+          "unrelated": 0.11249999999999999
+        }
       },
       {
         "id": "ref-11",
@@ -605,9 +935,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 28,
+        "roundTripMs": 31,
         "goldAction": "keep",
-        "action": "keep"
+        "action": "keep",
+        "unsure": false,
+        "margin": 0.4375,
+        "probabilities": {
+          "duplicate": 0.11249999999999999,
+          "refines": 0.55,
+          "supersedes": 0.11249999999999999,
+          "contradicts": 0.11249999999999999,
+          "unrelated": 0.11249999999999999
+        }
       },
       {
         "id": "ref-12",
@@ -620,9 +959,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 27,
+        "roundTripMs": 33,
         "goldAction": "keep",
-        "action": "keep"
+        "action": "keep",
+        "unsure": false,
+        "margin": 0.4375,
+        "probabilities": {
+          "duplicate": 0.11249999999999999,
+          "refines": 0.55,
+          "supersedes": 0.11249999999999999,
+          "contradicts": 0.11249999999999999,
+          "unrelated": 0.11249999999999999
+        }
       },
       {
         "id": "ref-13",
@@ -635,9 +983,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 28,
+        "roundTripMs": 15,
         "goldAction": "keep",
-        "action": "keep"
+        "action": "keep",
+        "unsure": false,
+        "margin": 0.4375,
+        "probabilities": {
+          "duplicate": 0.11249999999999999,
+          "refines": 0.55,
+          "supersedes": 0.11249999999999999,
+          "contradicts": 0.11249999999999999,
+          "unrelated": 0.11249999999999999
+        }
       },
       {
         "id": "ref-14",
@@ -650,9 +1007,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 25,
+        "roundTripMs": 26,
         "goldAction": "keep",
-        "action": "keep"
+        "action": "keep",
+        "unsure": true,
+        "margin": 0.3125,
+        "probabilities": {
+          "duplicate": 0.1375,
+          "refines": 0.1375,
+          "supersedes": 0.1375,
+          "contradicts": 0.1375,
+          "unrelated": 0.45
+        }
       },
       {
         "id": "ref-15",
@@ -665,9 +1031,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 26,
+        "roundTripMs": 25,
         "goldAction": "keep",
-        "action": "keep"
+        "action": "keep",
+        "unsure": false,
+        "margin": 0.4375,
+        "probabilities": {
+          "duplicate": 0.11249999999999999,
+          "refines": 0.55,
+          "supersedes": 0.11249999999999999,
+          "contradicts": 0.11249999999999999,
+          "unrelated": 0.11249999999999999
+        }
       },
       {
         "id": "ref-16",
@@ -680,9 +1055,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 28,
+        "roundTripMs": 39,
         "goldAction": "keep",
-        "action": "keep"
+        "action": "keep",
+        "unsure": false,
+        "margin": 0.4375,
+        "probabilities": {
+          "duplicate": 0.11249999999999999,
+          "refines": 0.55,
+          "supersedes": 0.11249999999999999,
+          "contradicts": 0.11249999999999999,
+          "unrelated": 0.11249999999999999
+        }
       },
       {
         "id": "ref-17",
@@ -695,9 +1079,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 27,
+        "roundTripMs": 36,
         "goldAction": "keep",
-        "action": "keep"
+        "action": "keep",
+        "unsure": false,
+        "margin": 0.4375,
+        "probabilities": {
+          "duplicate": 0.11249999999999999,
+          "refines": 0.55,
+          "supersedes": 0.11249999999999999,
+          "contradicts": 0.11249999999999999,
+          "unrelated": 0.11249999999999999
+        }
       },
       {
         "id": "ref-18",
@@ -710,9 +1103,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 32,
+        "roundTripMs": 35,
         "goldAction": "keep",
-        "action": "keep"
+        "action": "keep",
+        "unsure": false,
+        "margin": 0.4375,
+        "probabilities": {
+          "duplicate": 0.11249999999999999,
+          "refines": 0.55,
+          "supersedes": 0.11249999999999999,
+          "contradicts": 0.11249999999999999,
+          "unrelated": 0.11249999999999999
+        }
       },
       {
         "id": "ref-19",
@@ -725,9 +1127,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 32,
+        "roundTripMs": 35,
         "goldAction": "keep",
-        "action": "conflict"
+        "action": "conflict",
+        "unsure": false,
+        "margin": 0.4375,
+        "probabilities": {
+          "duplicate": 0.11249999999999999,
+          "refines": 0.11249999999999999,
+          "supersedes": 0.11249999999999999,
+          "contradicts": 0.55,
+          "unrelated": 0.11249999999999999
+        }
       },
       {
         "id": "ref-20",
@@ -739,10 +1150,19 @@
         "confidence": 0.55,
         "judge": "heuristic",
         "fallback": null,
-        "judgeMs": 0,
-        "roundTripMs": 32,
+        "judgeMs": 1,
+        "roundTripMs": 30,
         "goldAction": "keep",
-        "action": "conflict"
+        "action": "conflict",
+        "unsure": false,
+        "margin": 0.4375,
+        "probabilities": {
+          "duplicate": 0.11249999999999999,
+          "refines": 0.11249999999999999,
+          "supersedes": 0.11249999999999999,
+          "contradicts": 0.55,
+          "unrelated": 0.11249999999999999
+        }
       },
       {
         "id": "sup-01",
@@ -755,9 +1175,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 32,
+        "roundTripMs": 28,
         "goldAction": "supersede",
-        "action": "supersede"
+        "action": "supersede",
+        "unsure": false,
+        "margin": 0.4375,
+        "probabilities": {
+          "duplicate": 0.11249999999999999,
+          "refines": 0.11249999999999999,
+          "supersedes": 0.55,
+          "contradicts": 0.11249999999999999,
+          "unrelated": 0.11249999999999999
+        }
       },
       {
         "id": "sup-02",
@@ -770,9 +1199,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 27,
+        "roundTripMs": 31,
         "goldAction": "supersede",
-        "action": "keep"
+        "action": "keep",
+        "unsure": false,
+        "margin": 0.7687,
+        "probabilities": {
+          "duplicate": 0.04625000000000001,
+          "refines": 0.04625000000000001,
+          "supersedes": 0.04625000000000001,
+          "contradicts": 0.04625000000000001,
+          "unrelated": 0.815
+        }
       },
       {
         "id": "sup-03",
@@ -784,10 +1222,19 @@
         "confidence": 0.55,
         "judge": "heuristic",
         "fallback": null,
-        "judgeMs": 0,
-        "roundTripMs": 26,
+        "judgeMs": 1,
+        "roundTripMs": 30,
         "goldAction": "supersede",
-        "action": "supersede"
+        "action": "supersede",
+        "unsure": false,
+        "margin": 0.4375,
+        "probabilities": {
+          "duplicate": 0.11249999999999999,
+          "refines": 0.11249999999999999,
+          "supersedes": 0.55,
+          "contradicts": 0.11249999999999999,
+          "unrelated": 0.11249999999999999
+        }
       },
       {
         "id": "sup-04",
@@ -800,9 +1247,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 22,
+        "roundTripMs": 31,
         "goldAction": "supersede",
-        "action": "supersede"
+        "action": "supersede",
+        "unsure": false,
+        "margin": 0.4375,
+        "probabilities": {
+          "duplicate": 0.11249999999999999,
+          "refines": 0.11249999999999999,
+          "supersedes": 0.55,
+          "contradicts": 0.11249999999999999,
+          "unrelated": 0.11249999999999999
+        }
       },
       {
         "id": "sup-05",
@@ -815,9 +1271,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 22,
+        "roundTripMs": 31,
         "goldAction": "supersede",
-        "action": "keep"
+        "action": "keep",
+        "unsure": false,
+        "margin": 0.675,
+        "probabilities": {
+          "duplicate": 0.065,
+          "refines": 0.065,
+          "supersedes": 0.065,
+          "contradicts": 0.065,
+          "unrelated": 0.74
+        }
       },
       {
         "id": "sup-06",
@@ -830,9 +1295,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 19,
+        "roundTripMs": 32,
         "goldAction": "supersede",
-        "action": "supersede"
+        "action": "supersede",
+        "unsure": false,
+        "margin": 0.4375,
+        "probabilities": {
+          "duplicate": 0.11249999999999999,
+          "refines": 0.11249999999999999,
+          "supersedes": 0.55,
+          "contradicts": 0.11249999999999999,
+          "unrelated": 0.11249999999999999
+        }
       },
       {
         "id": "sup-07",
@@ -845,9 +1319,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 20,
+        "roundTripMs": 33,
         "goldAction": "supersede",
-        "action": "keep"
+        "action": "keep",
+        "unsure": false,
+        "margin": 0.6977,
+        "probabilities": {
+          "duplicate": 0.060454545454545455,
+          "refines": 0.060454545454545455,
+          "supersedes": 0.060454545454545455,
+          "contradicts": 0.060454545454545455,
+          "unrelated": 0.7581818181818182
+        }
       },
       {
         "id": "sup-08",
@@ -860,9 +1343,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 20,
+        "roundTripMs": 29,
         "goldAction": "supersede",
-        "action": "supersede"
+        "action": "supersede",
+        "unsure": false,
+        "margin": 0.4375,
+        "probabilities": {
+          "duplicate": 0.11249999999999999,
+          "refines": 0.11249999999999999,
+          "supersedes": 0.55,
+          "contradicts": 0.11249999999999999,
+          "unrelated": 0.11249999999999999
+        }
       },
       {
         "id": "sup-09",
@@ -874,10 +1366,19 @@
         "confidence": 0.55,
         "judge": "heuristic",
         "fallback": null,
-        "judgeMs": 0,
-        "roundTripMs": 20,
+        "judgeMs": 1,
+        "roundTripMs": 30,
         "goldAction": "supersede",
-        "action": "supersede"
+        "action": "supersede",
+        "unsure": false,
+        "margin": 0.4375,
+        "probabilities": {
+          "duplicate": 0.11249999999999999,
+          "refines": 0.11249999999999999,
+          "supersedes": 0.55,
+          "contradicts": 0.11249999999999999,
+          "unrelated": 0.11249999999999999
+        }
       },
       {
         "id": "sup-10",
@@ -890,9 +1391,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 21,
+        "roundTripMs": 28,
         "goldAction": "supersede",
-        "action": "conflict"
+        "action": "conflict",
+        "unsure": false,
+        "margin": 0.4375,
+        "probabilities": {
+          "duplicate": 0.11249999999999999,
+          "refines": 0.11249999999999999,
+          "supersedes": 0.11249999999999999,
+          "contradicts": 0.55,
+          "unrelated": 0.11249999999999999
+        }
       },
       {
         "id": "sup-11",
@@ -905,9 +1415,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 21,
+        "roundTripMs": 29,
         "goldAction": "supersede",
-        "action": "supersede"
+        "action": "supersede",
+        "unsure": false,
+        "margin": 0.4375,
+        "probabilities": {
+          "duplicate": 0.11249999999999999,
+          "refines": 0.11249999999999999,
+          "supersedes": 0.55,
+          "contradicts": 0.11249999999999999,
+          "unrelated": 0.11249999999999999
+        }
       },
       {
         "id": "sup-12",
@@ -920,9 +1439,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 21,
+        "roundTripMs": 31,
         "goldAction": "supersede",
-        "action": "supersede"
+        "action": "supersede",
+        "unsure": false,
+        "margin": 0.4375,
+        "probabilities": {
+          "duplicate": 0.11249999999999999,
+          "refines": 0.11249999999999999,
+          "supersedes": 0.55,
+          "contradicts": 0.11249999999999999,
+          "unrelated": 0.11249999999999999
+        }
       },
       {
         "id": "sup-13",
@@ -935,9 +1463,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 21,
+        "roundTripMs": 29,
         "goldAction": "supersede",
-        "action": "keep"
+        "action": "keep",
+        "unsure": false,
+        "margin": 0.5679,
+        "probabilities": {
+          "duplicate": 0.08642857142857141,
+          "refines": 0.08642857142857141,
+          "supersedes": 0.08642857142857141,
+          "contradicts": 0.08642857142857141,
+          "unrelated": 0.6542857142857144
+        }
       },
       {
         "id": "sup-14",
@@ -950,9 +1487,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 22,
+        "roundTripMs": 29,
         "goldAction": "supersede",
-        "action": "supersede"
+        "action": "supersede",
+        "unsure": false,
+        "margin": 0.4375,
+        "probabilities": {
+          "duplicate": 0.11249999999999999,
+          "refines": 0.11249999999999999,
+          "supersedes": 0.55,
+          "contradicts": 0.11249999999999999,
+          "unrelated": 0.11249999999999999
+        }
       },
       {
         "id": "sup-15",
@@ -965,9 +1511,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 21,
+        "roundTripMs": 29,
         "goldAction": "supersede",
-        "action": "supersede"
+        "action": "supersede",
+        "unsure": false,
+        "margin": 0.4375,
+        "probabilities": {
+          "duplicate": 0.11249999999999999,
+          "refines": 0.11249999999999999,
+          "supersedes": 0.55,
+          "contradicts": 0.11249999999999999,
+          "unrelated": 0.11249999999999999
+        }
       },
       {
         "id": "sup-16",
@@ -980,9 +1535,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 30,
+        "roundTripMs": 41,
         "goldAction": "supersede",
-        "action": "supersede"
+        "action": "supersede",
+        "unsure": false,
+        "margin": 0.4375,
+        "probabilities": {
+          "duplicate": 0.11249999999999999,
+          "refines": 0.11249999999999999,
+          "supersedes": 0.55,
+          "contradicts": 0.11249999999999999,
+          "unrelated": 0.11249999999999999
+        }
       },
       {
         "id": "sup-17",
@@ -994,10 +1558,19 @@
         "confidence": 0.55,
         "judge": "heuristic",
         "fallback": null,
-        "judgeMs": 0,
-        "roundTripMs": 30,
+        "judgeMs": 1,
+        "roundTripMs": 39,
         "goldAction": "supersede",
-        "action": "supersede"
+        "action": "supersede",
+        "unsure": false,
+        "margin": 0.4375,
+        "probabilities": {
+          "duplicate": 0.11249999999999999,
+          "refines": 0.11249999999999999,
+          "supersedes": 0.55,
+          "contradicts": 0.11249999999999999,
+          "unrelated": 0.11249999999999999
+        }
       },
       {
         "id": "sup-18",
@@ -1010,9 +1583,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 30,
+        "roundTripMs": 43,
         "goldAction": "supersede",
-        "action": "supersede"
+        "action": "supersede",
+        "unsure": false,
+        "margin": 0.4375,
+        "probabilities": {
+          "duplicate": 0.11249999999999999,
+          "refines": 0.11249999999999999,
+          "supersedes": 0.55,
+          "contradicts": 0.11249999999999999,
+          "unrelated": 0.11249999999999999
+        }
       },
       {
         "id": "sup-19",
@@ -1025,9 +1607,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 31,
+        "roundTripMs": 41,
         "goldAction": "supersede",
-        "action": "supersede"
+        "action": "supersede",
+        "unsure": false,
+        "margin": 0.4375,
+        "probabilities": {
+          "duplicate": 0.11249999999999999,
+          "refines": 0.11249999999999999,
+          "supersedes": 0.55,
+          "contradicts": 0.11249999999999999,
+          "unrelated": 0.11249999999999999
+        }
       },
       {
         "id": "sup-20",
@@ -1040,9 +1631,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 22,
+        "roundTripMs": 32,
         "goldAction": "supersede",
-        "action": "supersede"
+        "action": "supersede",
+        "unsure": false,
+        "margin": 0.4375,
+        "probabilities": {
+          "duplicate": 0.11249999999999999,
+          "refines": 0.11249999999999999,
+          "supersedes": 0.55,
+          "contradicts": 0.11249999999999999,
+          "unrelated": 0.11249999999999999
+        }
       },
       {
         "id": "con-01",
@@ -1055,9 +1655,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 23,
+        "roundTripMs": 31,
         "goldAction": "conflict",
-        "action": "conflict"
+        "action": "conflict",
+        "unsure": false,
+        "margin": 0.4375,
+        "probabilities": {
+          "duplicate": 0.11249999999999999,
+          "refines": 0.11249999999999999,
+          "supersedes": 0.11249999999999999,
+          "contradicts": 0.55,
+          "unrelated": 0.11249999999999999
+        }
       },
       {
         "id": "con-02",
@@ -1070,9 +1679,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 87,
+        "roundTripMs": 28,
         "goldAction": "conflict",
-        "action": "keep"
+        "action": "keep",
+        "unsure": false,
+        "margin": 0.4375,
+        "probabilities": {
+          "duplicate": 0.11249999999999999,
+          "refines": 0.55,
+          "supersedes": 0.11249999999999999,
+          "contradicts": 0.11249999999999999,
+          "unrelated": 0.11249999999999999
+        }
       },
       {
         "id": "con-03",
@@ -1085,9 +1703,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 88,
+        "roundTripMs": 29,
         "goldAction": "conflict",
-        "action": "keep"
+        "action": "keep",
+        "unsure": true,
+        "margin": 0.3125,
+        "probabilities": {
+          "duplicate": 0.1375,
+          "refines": 0.1375,
+          "supersedes": 0.1375,
+          "contradicts": 0.1375,
+          "unrelated": 0.45
+        }
       },
       {
         "id": "con-04",
@@ -1100,9 +1727,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 90,
+        "roundTripMs": 26,
         "goldAction": "conflict",
-        "action": "keep"
+        "action": "keep",
+        "unsure": true,
+        "margin": 0.3125,
+        "probabilities": {
+          "duplicate": 0.1375,
+          "refines": 0.1375,
+          "supersedes": 0.1375,
+          "contradicts": 0.1375,
+          "unrelated": 0.45
+        }
       },
       {
         "id": "con-05",
@@ -1115,9 +1751,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 90,
+        "roundTripMs": 26,
         "goldAction": "conflict",
-        "action": "keep"
+        "action": "keep",
+        "unsure": true,
+        "margin": 0.3125,
+        "probabilities": {
+          "duplicate": 0.1375,
+          "refines": 0.1375,
+          "supersedes": 0.1375,
+          "contradicts": 0.1375,
+          "unrelated": 0.45
+        }
       },
       {
         "id": "con-06",
@@ -1130,9 +1775,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 28,
+        "roundTripMs": 30,
         "goldAction": "conflict",
-        "action": "keep"
+        "action": "keep",
+        "unsure": true,
+        "margin": 0.625,
+        "probabilities": {
+          "duplicate": 0.7,
+          "refines": 0.07500000000000001,
+          "supersedes": 0.07500000000000001,
+          "contradicts": 0.07500000000000001,
+          "unrelated": 0.07500000000000001
+        }
       },
       {
         "id": "con-07",
@@ -1145,9 +1799,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 26,
+        "roundTripMs": 28,
         "goldAction": "conflict",
-        "action": "keep"
+        "action": "keep",
+        "unsure": false,
+        "margin": 0.7464,
+        "probabilities": {
+          "duplicate": 0.05071428571428571,
+          "refines": 0.05071428571428571,
+          "supersedes": 0.05071428571428571,
+          "contradicts": 0.05071428571428571,
+          "unrelated": 0.7971428571428572
+        }
       },
       {
         "id": "con-08",
@@ -1160,9 +1823,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 24,
+        "roundTripMs": 29,
         "goldAction": "conflict",
-        "action": "conflict"
+        "action": "conflict",
+        "unsure": false,
+        "margin": 0.4375,
+        "probabilities": {
+          "duplicate": 0.11249999999999999,
+          "refines": 0.11249999999999999,
+          "supersedes": 0.11249999999999999,
+          "contradicts": 0.55,
+          "unrelated": 0.11249999999999999
+        }
       },
       {
         "id": "con-09",
@@ -1175,9 +1847,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 23,
+        "roundTripMs": 29,
         "goldAction": "conflict",
-        "action": "keep"
+        "action": "keep",
+        "unsure": true,
+        "margin": 0.625,
+        "probabilities": {
+          "duplicate": 0.7,
+          "refines": 0.07500000000000001,
+          "supersedes": 0.07500000000000001,
+          "contradicts": 0.07500000000000001,
+          "unrelated": 0.07500000000000001
+        }
       },
       {
         "id": "con-10",
@@ -1190,9 +1871,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 19,
+        "roundTripMs": 27,
         "goldAction": "conflict",
-        "action": "conflict"
+        "action": "conflict",
+        "unsure": false,
+        "margin": 0.4375,
+        "probabilities": {
+          "duplicate": 0.11249999999999999,
+          "refines": 0.11249999999999999,
+          "supersedes": 0.11249999999999999,
+          "contradicts": 0.55,
+          "unrelated": 0.11249999999999999
+        }
       },
       {
         "id": "con-11",
@@ -1205,9 +1895,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 20,
+        "roundTripMs": 26,
         "goldAction": "conflict",
-        "action": "keep"
+        "action": "keep",
+        "unsure": true,
+        "margin": 0.625,
+        "probabilities": {
+          "duplicate": 0.7,
+          "refines": 0.07500000000000001,
+          "supersedes": 0.07500000000000001,
+          "contradicts": 0.07500000000000001,
+          "unrelated": 0.07500000000000001
+        }
       },
       {
         "id": "con-12",
@@ -1220,9 +1919,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 29,
+        "roundTripMs": 34,
         "goldAction": "conflict",
-        "action": "keep"
+        "action": "keep",
+        "unsure": true,
+        "margin": 0.625,
+        "probabilities": {
+          "duplicate": 0.7,
+          "refines": 0.07500000000000001,
+          "supersedes": 0.07500000000000001,
+          "contradicts": 0.07500000000000001,
+          "unrelated": 0.07500000000000001
+        }
       },
       {
         "id": "con-13",
@@ -1235,9 +1943,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 29,
+        "roundTripMs": 33,
         "goldAction": "conflict",
-        "action": "conflict"
+        "action": "conflict",
+        "unsure": false,
+        "margin": 0.4375,
+        "probabilities": {
+          "duplicate": 0.11249999999999999,
+          "refines": 0.11249999999999999,
+          "supersedes": 0.11249999999999999,
+          "contradicts": 0.55,
+          "unrelated": 0.11249999999999999
+        }
       },
       {
         "id": "con-14",
@@ -1252,7 +1969,16 @@
         "judgeMs": 0,
         "roundTripMs": 32,
         "goldAction": "conflict",
-        "action": "conflict"
+        "action": "conflict",
+        "unsure": false,
+        "margin": 0.4375,
+        "probabilities": {
+          "duplicate": 0.11249999999999999,
+          "refines": 0.11249999999999999,
+          "supersedes": 0.11249999999999999,
+          "contradicts": 0.55,
+          "unrelated": 0.11249999999999999
+        }
       },
       {
         "id": "con-15",
@@ -1267,7 +1993,16 @@
         "judgeMs": 0,
         "roundTripMs": 32,
         "goldAction": "conflict",
-        "action": "keep"
+        "action": "keep",
+        "unsure": false,
+        "margin": 0.675,
+        "probabilities": {
+          "duplicate": 0.065,
+          "refines": 0.065,
+          "supersedes": 0.065,
+          "contradicts": 0.065,
+          "unrelated": 0.74
+        }
       },
       {
         "id": "con-16",
@@ -1282,7 +2017,16 @@
         "judgeMs": 0,
         "roundTripMs": 26,
         "goldAction": "conflict",
-        "action": "conflict"
+        "action": "conflict",
+        "unsure": false,
+        "margin": 0.4375,
+        "probabilities": {
+          "duplicate": 0.11249999999999999,
+          "refines": 0.11249999999999999,
+          "supersedes": 0.11249999999999999,
+          "contradicts": 0.55,
+          "unrelated": 0.11249999999999999
+        }
       },
       {
         "id": "con-17",
@@ -1295,9 +2039,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 26,
+        "roundTripMs": 25,
         "goldAction": "conflict",
-        "action": "conflict"
+        "action": "conflict",
+        "unsure": false,
+        "margin": 0.4375,
+        "probabilities": {
+          "duplicate": 0.11249999999999999,
+          "refines": 0.11249999999999999,
+          "supersedes": 0.11249999999999999,
+          "contradicts": 0.55,
+          "unrelated": 0.11249999999999999
+        }
       },
       {
         "id": "con-18",
@@ -1310,9 +2063,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 26,
+        "roundTripMs": 27,
         "goldAction": "conflict",
-        "action": "keep"
+        "action": "keep",
+        "unsure": true,
+        "margin": 0.625,
+        "probabilities": {
+          "duplicate": 0.7,
+          "refines": 0.07500000000000001,
+          "supersedes": 0.07500000000000001,
+          "contradicts": 0.07500000000000001,
+          "unrelated": 0.07500000000000001
+        }
       },
       {
         "id": "con-19",
@@ -1325,9 +2087,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 25,
+        "roundTripMs": 28,
         "goldAction": "conflict",
-        "action": "keep"
+        "action": "keep",
+        "unsure": true,
+        "margin": 0.625,
+        "probabilities": {
+          "duplicate": 0.7,
+          "refines": 0.07500000000000001,
+          "supersedes": 0.07500000000000001,
+          "contradicts": 0.07500000000000001,
+          "unrelated": 0.07500000000000001
+        }
       },
       {
         "id": "con-20",
@@ -1340,9 +2111,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 22,
+        "roundTripMs": 31,
         "goldAction": "conflict",
-        "action": "conflict"
+        "action": "conflict",
+        "unsure": false,
+        "margin": 0.4375,
+        "probabilities": {
+          "duplicate": 0.11249999999999999,
+          "refines": 0.11249999999999999,
+          "supersedes": 0.11249999999999999,
+          "contradicts": 0.55,
+          "unrelated": 0.11249999999999999
+        }
       },
       {
         "id": "unr-01",
@@ -1355,9 +2135,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 22,
+        "roundTripMs": 33,
         "goldAction": "keep",
-        "action": "keep"
+        "action": "keep",
+        "unsure": false,
+        "margin": 0.875,
+        "probabilities": {
+          "duplicate": 0.024999999999999994,
+          "refines": 0.024999999999999994,
+          "supersedes": 0.024999999999999994,
+          "contradicts": 0.024999999999999994,
+          "unrelated": 0.9
+        }
       },
       {
         "id": "unr-02",
@@ -1370,9 +2159,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 21,
+        "roundTripMs": 31,
         "goldAction": "keep",
-        "action": "keep"
+        "action": "keep",
+        "unsure": false,
+        "margin": 0.875,
+        "probabilities": {
+          "duplicate": 0.024999999999999994,
+          "refines": 0.024999999999999994,
+          "supersedes": 0.024999999999999994,
+          "contradicts": 0.024999999999999994,
+          "unrelated": 0.9
+        }
       },
       {
         "id": "unr-03",
@@ -1385,9 +2183,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 21,
+        "roundTripMs": 31,
         "goldAction": "keep",
-        "action": "keep"
+        "action": "keep",
+        "unsure": false,
+        "margin": 0.7464,
+        "probabilities": {
+          "duplicate": 0.05071428571428571,
+          "refines": 0.05071428571428571,
+          "supersedes": 0.05071428571428571,
+          "contradicts": 0.05071428571428571,
+          "unrelated": 0.7971428571428572
+        }
       },
       {
         "id": "unr-04",
@@ -1400,9 +2207,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 25,
+        "roundTripMs": 28,
         "goldAction": "keep",
-        "action": "keep"
+        "action": "keep",
+        "unsure": false,
+        "margin": 0.5679,
+        "probabilities": {
+          "duplicate": 0.08642857142857141,
+          "refines": 0.08642857142857141,
+          "supersedes": 0.08642857142857141,
+          "contradicts": 0.08642857142857141,
+          "unrelated": 0.6542857142857144
+        }
       },
       {
         "id": "unr-05",
@@ -1414,10 +2230,19 @@
         "confidence": 0.9,
         "judge": "heuristic",
         "fallback": null,
-        "judgeMs": 0,
-        "roundTripMs": 25,
+        "judgeMs": 1,
+        "roundTripMs": 26,
         "goldAction": "keep",
-        "action": "keep"
+        "action": "keep",
+        "unsure": false,
+        "margin": 0.875,
+        "probabilities": {
+          "duplicate": 0.024999999999999994,
+          "refines": 0.024999999999999994,
+          "supersedes": 0.024999999999999994,
+          "contradicts": 0.024999999999999994,
+          "unrelated": 0.9
+        }
       },
       {
         "id": "unr-06",
@@ -1432,7 +2257,16 @@
         "judgeMs": 0,
         "roundTripMs": 24,
         "goldAction": "keep",
-        "action": "keep"
+        "action": "keep",
+        "unsure": false,
+        "margin": 0.7464,
+        "probabilities": {
+          "duplicate": 0.05071428571428571,
+          "refines": 0.05071428571428571,
+          "supersedes": 0.05071428571428571,
+          "contradicts": 0.05071428571428571,
+          "unrelated": 0.7971428571428572
+        }
       },
       {
         "id": "unr-07",
@@ -1447,7 +2281,16 @@
         "judgeMs": 0,
         "roundTripMs": 24,
         "goldAction": "keep",
-        "action": "keep"
+        "action": "keep",
+        "unsure": false,
+        "margin": 0.875,
+        "probabilities": {
+          "duplicate": 0.024999999999999994,
+          "refines": 0.024999999999999994,
+          "supersedes": 0.024999999999999994,
+          "contradicts": 0.024999999999999994,
+          "unrelated": 0.9
+        }
       },
       {
         "id": "unr-08",
@@ -1460,9 +2303,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 28,
+        "roundTripMs": 30,
         "goldAction": "keep",
-        "action": "conflict"
+        "action": "conflict",
+        "unsure": false,
+        "margin": 0.4375,
+        "probabilities": {
+          "duplicate": 0.11249999999999999,
+          "refines": 0.11249999999999999,
+          "supersedes": 0.11249999999999999,
+          "contradicts": 0.55,
+          "unrelated": 0.11249999999999999
+        }
       },
       {
         "id": "unr-09",
@@ -1474,10 +2326,19 @@
         "confidence": 0.74,
         "judge": "heuristic",
         "fallback": null,
-        "judgeMs": 0,
-        "roundTripMs": 26,
+        "judgeMs": 3,
+        "roundTripMs": 30,
         "goldAction": "keep",
-        "action": "keep"
+        "action": "keep",
+        "unsure": false,
+        "margin": 0.675,
+        "probabilities": {
+          "duplicate": 0.065,
+          "refines": 0.065,
+          "supersedes": 0.065,
+          "contradicts": 0.065,
+          "unrelated": 0.74
+        }
       },
       {
         "id": "unr-10",
@@ -1490,9 +2351,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 26,
+        "roundTripMs": 33,
         "goldAction": "keep",
-        "action": "keep"
+        "action": "keep",
+        "unsure": false,
+        "margin": 0.5679,
+        "probabilities": {
+          "duplicate": 0.08642857142857141,
+          "refines": 0.08642857142857141,
+          "supersedes": 0.08642857142857141,
+          "contradicts": 0.08642857142857141,
+          "unrelated": 0.6542857142857144
+        }
       },
       {
         "id": "unr-11",
@@ -1505,9 +2375,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 28,
+        "roundTripMs": 33,
         "goldAction": "keep",
-        "action": "keep"
+        "action": "keep",
+        "unsure": true,
+        "margin": 0.3125,
+        "probabilities": {
+          "duplicate": 0.1375,
+          "refines": 0.1375,
+          "supersedes": 0.1375,
+          "contradicts": 0.1375,
+          "unrelated": 0.45
+        }
       },
       {
         "id": "unr-12",
@@ -1520,9 +2399,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 25,
+        "roundTripMs": 26,
         "goldAction": "keep",
-        "action": "keep"
+        "action": "keep",
+        "unsure": true,
+        "margin": 0.3125,
+        "probabilities": {
+          "duplicate": 0.1375,
+          "refines": 0.1375,
+          "supersedes": 0.1375,
+          "contradicts": 0.1375,
+          "unrelated": 0.45
+        }
       },
       {
         "id": "unr-13",
@@ -1534,10 +2422,19 @@
         "confidence": 0.74,
         "judge": "heuristic",
         "fallback": null,
-        "judgeMs": 1,
-        "roundTripMs": 23,
+        "judgeMs": 0,
+        "roundTripMs": 26,
         "goldAction": "keep",
-        "action": "keep"
+        "action": "keep",
+        "unsure": false,
+        "margin": 0.675,
+        "probabilities": {
+          "duplicate": 0.065,
+          "refines": 0.065,
+          "supersedes": 0.065,
+          "contradicts": 0.065,
+          "unrelated": 0.74
+        }
       },
       {
         "id": "unr-14",
@@ -1550,9 +2447,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 24,
+        "roundTripMs": 22,
         "goldAction": "keep",
-        "action": "conflict"
+        "action": "conflict",
+        "unsure": false,
+        "margin": 0.4375,
+        "probabilities": {
+          "duplicate": 0.11249999999999999,
+          "refines": 0.11249999999999999,
+          "supersedes": 0.11249999999999999,
+          "contradicts": 0.55,
+          "unrelated": 0.11249999999999999
+        }
       },
       {
         "id": "unr-15",
@@ -1565,9 +2471,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 22,
+        "roundTripMs": 21,
         "goldAction": "keep",
-        "action": "keep"
+        "action": "keep",
+        "unsure": false,
+        "margin": 0.875,
+        "probabilities": {
+          "duplicate": 0.024999999999999994,
+          "refines": 0.024999999999999994,
+          "supersedes": 0.024999999999999994,
+          "contradicts": 0.024999999999999994,
+          "unrelated": 0.9
+        }
       },
       {
         "id": "unr-16",
@@ -1579,10 +2494,19 @@
         "confidence": 0.9,
         "judge": "heuristic",
         "fallback": null,
-        "judgeMs": 1,
-        "roundTripMs": 20,
+        "judgeMs": 0,
+        "roundTripMs": 17,
         "goldAction": "keep",
-        "action": "keep"
+        "action": "keep",
+        "unsure": false,
+        "margin": 0.875,
+        "probabilities": {
+          "duplicate": 0.024999999999999994,
+          "refines": 0.024999999999999994,
+          "supersedes": 0.024999999999999994,
+          "contradicts": 0.024999999999999994,
+          "unrelated": 0.9
+        }
       },
       {
         "id": "unr-17",
@@ -1595,9 +2519,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 21,
+        "roundTripMs": 17,
         "goldAction": "keep",
-        "action": "keep"
+        "action": "keep",
+        "unsure": false,
+        "margin": 0.5083,
+        "probabilities": {
+          "duplicate": 0.09833333333333333,
+          "refines": 0.09833333333333333,
+          "supersedes": 0.09833333333333333,
+          "contradicts": 0.09833333333333333,
+          "unrelated": 0.6066666666666667
+        }
       },
       {
         "id": "unr-18",
@@ -1610,9 +2543,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 22,
+        "roundTripMs": 19,
         "goldAction": "keep",
-        "action": "keep"
+        "action": "keep",
+        "unsure": false,
+        "margin": 0.875,
+        "probabilities": {
+          "duplicate": 0.024999999999999994,
+          "refines": 0.024999999999999994,
+          "supersedes": 0.024999999999999994,
+          "contradicts": 0.024999999999999994,
+          "unrelated": 0.9
+        }
       },
       {
         "id": "unr-19",
@@ -1625,9 +2567,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 22,
+        "roundTripMs": 18,
         "goldAction": "keep",
-        "action": "keep"
+        "action": "keep",
+        "unsure": false,
+        "margin": 0.7167,
+        "probabilities": {
+          "duplicate": 0.05666666666666667,
+          "refines": 0.05666666666666667,
+          "supersedes": 0.05666666666666667,
+          "contradicts": 0.05666666666666667,
+          "unrelated": 0.7733333333333333
+        }
       },
       {
         "id": "unr-20",
@@ -1639,10 +2590,19 @@
         "confidence": 0.9,
         "judge": "heuristic",
         "fallback": null,
-        "judgeMs": 1,
-        "roundTripMs": 17,
+        "judgeMs": 0,
+        "roundTripMs": 16,
         "goldAction": "keep",
-        "action": "keep"
+        "action": "keep",
+        "unsure": false,
+        "margin": 0.875,
+        "probabilities": {
+          "duplicate": 0.024999999999999994,
+          "refines": 0.024999999999999994,
+          "supersedes": 0.024999999999999994,
+          "contradicts": 0.024999999999999994,
+          "unrelated": 0.9
+        }
       }
     ]
   },
@@ -1681,6 +2641,39 @@
         "h-sup-06",
         "h-sup-08"
       ],
+      "sentToAgent": [
+        "h-dup-01",
+        "h-dup-03",
+        "h-dup-07",
+        "h-dup-09",
+        "h-ref-01",
+        "h-ref-04",
+        "h-ref-13",
+        "h-sup-04",
+        "h-con-03",
+        "h-con-11"
+      ],
+      "sentToAgentUseful": [
+        "h-dup-01",
+        "h-dup-03",
+        "h-dup-07",
+        "h-dup-09",
+        "h-ref-01",
+        "h-ref-04",
+        "h-ref-13",
+        "h-sup-04",
+        "h-con-03",
+        "h-con-11"
+      ],
+      "costlyMissesFlagged": [
+        "h-dup-01",
+        "h-dup-03",
+        "h-dup-07",
+        "h-dup-09",
+        "h-sup-04",
+        "h-con-03",
+        "h-con-11"
+      ],
       "fallbacks": 0,
       "fallbackReasons": [],
       "byDifficulty": {
@@ -1705,7 +2698,7 @@
       "latencyMs": {
         "judgeP50": 0,
         "judgeP95": 1,
-        "roundTripP50": 25
+        "roundTripP50": 30
       }
     },
     "perLabel": {
@@ -1789,9 +2782,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 48,
+        "roundTripMs": 21,
         "goldAction": "merge",
-        "action": "keep"
+        "action": "keep",
+        "unsure": true,
+        "margin": 0.3125,
+        "probabilities": {
+          "duplicate": 0.1375,
+          "refines": 0.1375,
+          "supersedes": 0.1375,
+          "contradicts": 0.1375,
+          "unrelated": 0.45
+        }
       },
       {
         "id": "h-dup-02",
@@ -1804,9 +2806,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 48,
+        "roundTripMs": 44,
         "goldAction": "merge",
-        "action": "conflict"
+        "action": "conflict",
+        "unsure": false,
+        "margin": 0.4375,
+        "probabilities": {
+          "duplicate": 0.11249999999999999,
+          "refines": 0.11249999999999999,
+          "supersedes": 0.11249999999999999,
+          "contradicts": 0.55,
+          "unrelated": 0.11249999999999999
+        }
       },
       {
         "id": "h-dup-03",
@@ -1819,9 +2830,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 49,
+        "roundTripMs": 44,
         "goldAction": "merge",
-        "action": "keep"
+        "action": "keep",
+        "unsure": true,
+        "margin": 0.625,
+        "probabilities": {
+          "duplicate": 0.7,
+          "refines": 0.07500000000000001,
+          "supersedes": 0.07500000000000001,
+          "contradicts": 0.07500000000000001,
+          "unrelated": 0.07500000000000001
+        }
       },
       {
         "id": "h-dup-04",
@@ -1833,10 +2853,19 @@
         "confidence": 0.55,
         "judge": "heuristic",
         "fallback": null,
-        "judgeMs": 1,
-        "roundTripMs": 49,
+        "judgeMs": 0,
+        "roundTripMs": 43,
         "goldAction": "merge",
-        "action": "conflict"
+        "action": "conflict",
+        "unsure": false,
+        "margin": 0.4375,
+        "probabilities": {
+          "duplicate": 0.11249999999999999,
+          "refines": 0.11249999999999999,
+          "supersedes": 0.11249999999999999,
+          "contradicts": 0.55,
+          "unrelated": 0.11249999999999999
+        }
       },
       {
         "id": "h-dup-05",
@@ -1849,9 +2878,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 12,
+        "roundTripMs": 31,
         "goldAction": "merge",
-        "action": "keep"
+        "action": "keep",
+        "unsure": false,
+        "margin": 0.4375,
+        "probabilities": {
+          "duplicate": 0.11249999999999999,
+          "refines": 0.55,
+          "supersedes": 0.11249999999999999,
+          "contradicts": 0.11249999999999999,
+          "unrelated": 0.11249999999999999
+        }
       },
       {
         "id": "h-dup-06",
@@ -1864,9 +2902,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 29,
+        "roundTripMs": 28,
         "goldAction": "merge",
-        "action": "keep"
+        "action": "keep",
+        "unsure": false,
+        "margin": 0.5083,
+        "probabilities": {
+          "duplicate": 0.09833333333333333,
+          "refines": 0.09833333333333333,
+          "supersedes": 0.09833333333333333,
+          "contradicts": 0.09833333333333333,
+          "unrelated": 0.6066666666666667
+        }
       },
       {
         "id": "h-dup-07",
@@ -1879,9 +2926,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 28,
+        "roundTripMs": 27,
         "goldAction": "merge",
-        "action": "keep"
+        "action": "keep",
+        "unsure": true,
+        "margin": 0.625,
+        "probabilities": {
+          "duplicate": 0.7,
+          "refines": 0.07500000000000001,
+          "supersedes": 0.07500000000000001,
+          "contradicts": 0.07500000000000001,
+          "unrelated": 0.07500000000000001
+        }
       },
       {
         "id": "h-dup-08",
@@ -1894,9 +2950,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 28,
+        "roundTripMs": 27,
         "goldAction": "merge",
-        "action": "conflict"
+        "action": "conflict",
+        "unsure": false,
+        "margin": 0.4375,
+        "probabilities": {
+          "duplicate": 0.11249999999999999,
+          "refines": 0.11249999999999999,
+          "supersedes": 0.11249999999999999,
+          "contradicts": 0.55,
+          "unrelated": 0.11249999999999999
+        }
       },
       {
         "id": "h-dup-09",
@@ -1909,9 +2974,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 22,
+        "roundTripMs": 32,
         "goldAction": "merge",
-        "action": "keep"
+        "action": "keep",
+        "unsure": true,
+        "margin": 0.3125,
+        "probabilities": {
+          "duplicate": 0.1375,
+          "refines": 0.1375,
+          "supersedes": 0.1375,
+          "contradicts": 0.1375,
+          "unrelated": 0.45
+        }
       },
       {
         "id": "h-dup-10",
@@ -1924,9 +2998,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 11,
+        "roundTripMs": 38,
         "goldAction": "merge",
-        "action": "conflict"
+        "action": "conflict",
+        "unsure": false,
+        "margin": 0.4375,
+        "probabilities": {
+          "duplicate": 0.11249999999999999,
+          "refines": 0.11249999999999999,
+          "supersedes": 0.11249999999999999,
+          "contradicts": 0.55,
+          "unrelated": 0.11249999999999999
+        }
       },
       {
         "id": "h-ref-01",
@@ -1938,10 +3021,19 @@
         "confidence": 0.7,
         "judge": "heuristic",
         "fallback": null,
-        "judgeMs": 0,
-        "roundTripMs": 29,
+        "judgeMs": 1,
+        "roundTripMs": 39,
         "goldAction": "keep",
-        "action": "keep"
+        "action": "keep",
+        "unsure": true,
+        "margin": 0.625,
+        "probabilities": {
+          "duplicate": 0.7,
+          "refines": 0.07500000000000001,
+          "supersedes": 0.07500000000000001,
+          "contradicts": 0.07500000000000001,
+          "unrelated": 0.07500000000000001
+        }
       },
       {
         "id": "h-ref-02",
@@ -1954,9 +3046,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 29,
+        "roundTripMs": 39,
         "goldAction": "keep",
-        "action": "keep"
+        "action": "keep",
+        "unsure": false,
+        "margin": 0.4375,
+        "probabilities": {
+          "duplicate": 0.11249999999999999,
+          "refines": 0.55,
+          "supersedes": 0.11249999999999999,
+          "contradicts": 0.11249999999999999,
+          "unrelated": 0.11249999999999999
+        }
       },
       {
         "id": "h-ref-03",
@@ -1968,10 +3069,19 @@
         "confidence": 0.55,
         "judge": "heuristic",
         "fallback": null,
-        "judgeMs": 1,
-        "roundTripMs": 24,
+        "judgeMs": 0,
+        "roundTripMs": 40,
         "goldAction": "keep",
-        "action": "keep"
+        "action": "keep",
+        "unsure": false,
+        "margin": 0.4375,
+        "probabilities": {
+          "duplicate": 0.11249999999999999,
+          "refines": 0.55,
+          "supersedes": 0.11249999999999999,
+          "contradicts": 0.11249999999999999,
+          "unrelated": 0.11249999999999999
+        }
       },
       {
         "id": "h-ref-04",
@@ -1986,7 +3096,16 @@
         "judgeMs": 0,
         "roundTripMs": 34,
         "goldAction": "keep",
-        "action": "keep"
+        "action": "keep",
+        "unsure": true,
+        "margin": 0.625,
+        "probabilities": {
+          "duplicate": 0.7,
+          "refines": 0.07500000000000001,
+          "supersedes": 0.07500000000000001,
+          "contradicts": 0.07500000000000001,
+          "unrelated": 0.07500000000000001
+        }
       },
       {
         "id": "h-ref-05",
@@ -1999,9 +3118,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 32,
+        "roundTripMs": 33,
         "goldAction": "keep",
-        "action": "keep"
+        "action": "keep",
+        "unsure": false,
+        "margin": 0.4375,
+        "probabilities": {
+          "duplicate": 0.11249999999999999,
+          "refines": 0.55,
+          "supersedes": 0.11249999999999999,
+          "contradicts": 0.11249999999999999,
+          "unrelated": 0.11249999999999999
+        }
       },
       {
         "id": "h-ref-06",
@@ -2016,7 +3144,16 @@
         "judgeMs": 0,
         "roundTripMs": 32,
         "goldAction": "keep",
-        "action": "conflict"
+        "action": "conflict",
+        "unsure": false,
+        "margin": 0.4375,
+        "probabilities": {
+          "duplicate": 0.11249999999999999,
+          "refines": 0.11249999999999999,
+          "supersedes": 0.11249999999999999,
+          "contradicts": 0.55,
+          "unrelated": 0.11249999999999999
+        }
       },
       {
         "id": "h-ref-07",
@@ -2029,9 +3166,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 33,
+        "roundTripMs": 27,
         "goldAction": "keep",
-        "action": "conflict"
+        "action": "conflict",
+        "unsure": false,
+        "margin": 0.4375,
+        "probabilities": {
+          "duplicate": 0.11249999999999999,
+          "refines": 0.11249999999999999,
+          "supersedes": 0.11249999999999999,
+          "contradicts": 0.55,
+          "unrelated": 0.11249999999999999
+        }
       },
       {
         "id": "h-ref-08",
@@ -2043,10 +3189,19 @@
         "confidence": 0.55,
         "judge": "heuristic",
         "fallback": null,
-        "judgeMs": 1,
-        "roundTripMs": 25,
+        "judgeMs": 0,
+        "roundTripMs": 34,
         "goldAction": "keep",
-        "action": "keep"
+        "action": "keep",
+        "unsure": false,
+        "margin": 0.4375,
+        "probabilities": {
+          "duplicate": 0.11249999999999999,
+          "refines": 0.55,
+          "supersedes": 0.11249999999999999,
+          "contradicts": 0.11249999999999999,
+          "unrelated": 0.11249999999999999
+        }
       },
       {
         "id": "h-ref-09",
@@ -2058,10 +3213,19 @@
         "confidence": 0.55,
         "judge": "heuristic",
         "fallback": null,
-        "judgeMs": 0,
+        "judgeMs": 1,
         "roundTripMs": 31,
         "goldAction": "keep",
-        "action": "conflict"
+        "action": "conflict",
+        "unsure": false,
+        "margin": 0.4375,
+        "probabilities": {
+          "duplicate": 0.11249999999999999,
+          "refines": 0.11249999999999999,
+          "supersedes": 0.11249999999999999,
+          "contradicts": 0.55,
+          "unrelated": 0.11249999999999999
+        }
       },
       {
         "id": "h-ref-10",
@@ -2073,10 +3237,19 @@
         "confidence": 0.55,
         "judge": "heuristic",
         "fallback": null,
-        "judgeMs": 0,
-        "roundTripMs": 31,
+        "judgeMs": 1,
+        "roundTripMs": 33,
         "goldAction": "keep",
-        "action": "keep"
+        "action": "keep",
+        "unsure": false,
+        "margin": 0.4375,
+        "probabilities": {
+          "duplicate": 0.11249999999999999,
+          "refines": 0.55,
+          "supersedes": 0.11249999999999999,
+          "contradicts": 0.11249999999999999,
+          "unrelated": 0.11249999999999999
+        }
       },
       {
         "id": "h-ref-11",
@@ -2089,9 +3262,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 31,
+        "roundTripMs": 33,
         "goldAction": "keep",
-        "action": "keep"
+        "action": "keep",
+        "unsure": false,
+        "margin": 0.4375,
+        "probabilities": {
+          "duplicate": 0.11249999999999999,
+          "refines": 0.55,
+          "supersedes": 0.11249999999999999,
+          "contradicts": 0.11249999999999999,
+          "unrelated": 0.11249999999999999
+        }
       },
       {
         "id": "h-ref-12",
@@ -2104,9 +3286,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 28,
+        "roundTripMs": 30,
         "goldAction": "keep",
-        "action": "keep"
+        "action": "keep",
+        "unsure": false,
+        "margin": 0.4375,
+        "probabilities": {
+          "duplicate": 0.11249999999999999,
+          "refines": 0.55,
+          "supersedes": 0.11249999999999999,
+          "contradicts": 0.11249999999999999,
+          "unrelated": 0.11249999999999999
+        }
       },
       {
         "id": "h-ref-13",
@@ -2119,9 +3310,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 22,
+        "roundTripMs": 30,
         "goldAction": "keep",
-        "action": "keep"
+        "action": "keep",
+        "unsure": true,
+        "margin": 0.3125,
+        "probabilities": {
+          "duplicate": 0.1375,
+          "refines": 0.1375,
+          "supersedes": 0.1375,
+          "contradicts": 0.1375,
+          "unrelated": 0.45
+        }
       },
       {
         "id": "h-ref-14",
@@ -2134,9 +3334,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 22,
+        "roundTripMs": 43,
         "goldAction": "keep",
-        "action": "keep"
+        "action": "keep",
+        "unsure": false,
+        "margin": 0.4375,
+        "probabilities": {
+          "duplicate": 0.11249999999999999,
+          "refines": 0.55,
+          "supersedes": 0.11249999999999999,
+          "contradicts": 0.11249999999999999,
+          "unrelated": 0.11249999999999999
+        }
       },
       {
         "id": "h-sup-01",
@@ -2148,10 +3357,19 @@
         "confidence": 0.55,
         "judge": "heuristic",
         "fallback": null,
-        "judgeMs": 1,
-        "roundTripMs": 22,
+        "judgeMs": 0,
+        "roundTripMs": 36,
         "goldAction": "supersede",
-        "action": "supersede"
+        "action": "supersede",
+        "unsure": false,
+        "margin": 0.4375,
+        "probabilities": {
+          "duplicate": 0.11249999999999999,
+          "refines": 0.11249999999999999,
+          "supersedes": 0.55,
+          "contradicts": 0.11249999999999999,
+          "unrelated": 0.11249999999999999
+        }
       },
       {
         "id": "h-sup-02",
@@ -2163,10 +3381,19 @@
         "confidence": 0.55,
         "judge": "heuristic",
         "fallback": null,
-        "judgeMs": 0,
-        "roundTripMs": 26,
+        "judgeMs": 1,
+        "roundTripMs": 27,
         "goldAction": "supersede",
-        "action": "conflict"
+        "action": "conflict",
+        "unsure": false,
+        "margin": 0.4375,
+        "probabilities": {
+          "duplicate": 0.11249999999999999,
+          "refines": 0.11249999999999999,
+          "supersedes": 0.11249999999999999,
+          "contradicts": 0.55,
+          "unrelated": 0.11249999999999999
+        }
       },
       {
         "id": "h-sup-03",
@@ -2179,9 +3406,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 24,
+        "roundTripMs": 25,
         "goldAction": "supersede",
-        "action": "keep"
+        "action": "keep",
+        "unsure": false,
+        "margin": 0.5679,
+        "probabilities": {
+          "duplicate": 0.08642857142857141,
+          "refines": 0.08642857142857141,
+          "supersedes": 0.08642857142857141,
+          "contradicts": 0.08642857142857141,
+          "unrelated": 0.6542857142857144
+        }
       },
       {
         "id": "h-sup-04",
@@ -2194,9 +3430,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 25,
+        "roundTripMs": 32,
         "goldAction": "supersede",
-        "action": "keep"
+        "action": "keep",
+        "unsure": true,
+        "margin": 0.3125,
+        "probabilities": {
+          "duplicate": 0.1375,
+          "refines": 0.1375,
+          "supersedes": 0.1375,
+          "contradicts": 0.1375,
+          "unrelated": 0.45
+        }
       },
       {
         "id": "h-sup-05",
@@ -2209,9 +3454,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 23,
+        "roundTripMs": 32,
         "goldAction": "supersede",
-        "action": "supersede"
+        "action": "supersede",
+        "unsure": false,
+        "margin": 0.4375,
+        "probabilities": {
+          "duplicate": 0.11249999999999999,
+          "refines": 0.11249999999999999,
+          "supersedes": 0.55,
+          "contradicts": 0.11249999999999999,
+          "unrelated": 0.11249999999999999
+        }
       },
       {
         "id": "h-sup-06",
@@ -2224,9 +3478,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 20,
+        "roundTripMs": 34,
         "goldAction": "supersede",
-        "action": "conflict"
+        "action": "conflict",
+        "unsure": false,
+        "margin": 0.4375,
+        "probabilities": {
+          "duplicate": 0.11249999999999999,
+          "refines": 0.11249999999999999,
+          "supersedes": 0.11249999999999999,
+          "contradicts": 0.55,
+          "unrelated": 0.11249999999999999
+        }
       },
       {
         "id": "h-sup-07",
@@ -2239,9 +3502,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 21,
+        "roundTripMs": 34,
         "goldAction": "supersede",
-        "action": "supersede"
+        "action": "supersede",
+        "unsure": false,
+        "margin": 0.4375,
+        "probabilities": {
+          "duplicate": 0.11249999999999999,
+          "refines": 0.11249999999999999,
+          "supersedes": 0.55,
+          "contradicts": 0.11249999999999999,
+          "unrelated": 0.11249999999999999
+        }
       },
       {
         "id": "h-sup-08",
@@ -2254,9 +3526,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 21,
+        "roundTripMs": 27,
         "goldAction": "supersede",
-        "action": "conflict"
+        "action": "conflict",
+        "unsure": false,
+        "margin": 0.4375,
+        "probabilities": {
+          "duplicate": 0.11249999999999999,
+          "refines": 0.11249999999999999,
+          "supersedes": 0.11249999999999999,
+          "contradicts": 0.55,
+          "unrelated": 0.11249999999999999
+        }
       },
       {
         "id": "h-sup-09",
@@ -2269,9 +3550,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 20,
+        "roundTripMs": 28,
         "goldAction": "supersede",
-        "action": "supersede"
+        "action": "supersede",
+        "unsure": false,
+        "margin": 0.4375,
+        "probabilities": {
+          "duplicate": 0.11249999999999999,
+          "refines": 0.11249999999999999,
+          "supersedes": 0.55,
+          "contradicts": 0.11249999999999999,
+          "unrelated": 0.11249999999999999
+        }
       },
       {
         "id": "h-sup-10",
@@ -2284,9 +3574,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 20,
+        "roundTripMs": 26,
         "goldAction": "supersede",
-        "action": "supersede"
+        "action": "supersede",
+        "unsure": false,
+        "margin": 0.4375,
+        "probabilities": {
+          "duplicate": 0.11249999999999999,
+          "refines": 0.11249999999999999,
+          "supersedes": 0.55,
+          "contradicts": 0.11249999999999999,
+          "unrelated": 0.11249999999999999
+        }
       },
       {
         "id": "h-con-01",
@@ -2299,9 +3598,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 21,
+        "roundTripMs": 27,
         "goldAction": "conflict",
-        "action": "keep"
+        "action": "keep",
+        "unsure": false,
+        "margin": 0.5083,
+        "probabilities": {
+          "duplicate": 0.09833333333333333,
+          "refines": 0.09833333333333333,
+          "supersedes": 0.09833333333333333,
+          "contradicts": 0.09833333333333333,
+          "unrelated": 0.6066666666666667
+        }
       },
       {
         "id": "h-con-02",
@@ -2314,9 +3622,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 30,
+        "roundTripMs": 28,
         "goldAction": "conflict",
-        "action": "keep"
+        "action": "keep",
+        "unsure": false,
+        "margin": 0.5083,
+        "probabilities": {
+          "duplicate": 0.09833333333333333,
+          "refines": 0.09833333333333333,
+          "supersedes": 0.09833333333333333,
+          "contradicts": 0.09833333333333333,
+          "unrelated": 0.6066666666666667
+        }
       },
       {
         "id": "h-con-03",
@@ -2329,9 +3646,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 30,
+        "roundTripMs": 26,
         "goldAction": "conflict",
-        "action": "keep"
+        "action": "keep",
+        "unsure": true,
+        "margin": 0.625,
+        "probabilities": {
+          "duplicate": 0.7,
+          "refines": 0.07500000000000001,
+          "supersedes": 0.07500000000000001,
+          "contradicts": 0.07500000000000001,
+          "unrelated": 0.07500000000000001
+        }
       },
       {
         "id": "h-con-04",
@@ -2344,9 +3670,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 26,
+        "roundTripMs": 29,
         "goldAction": "conflict",
-        "action": "keep"
+        "action": "keep",
+        "unsure": false,
+        "margin": 0.55,
+        "probabilities": {
+          "duplicate": 0.09,
+          "refines": 0.09,
+          "supersedes": 0.09,
+          "contradicts": 0.09,
+          "unrelated": 0.64
+        }
       },
       {
         "id": "h-con-05",
@@ -2359,9 +3694,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 21,
+        "roundTripMs": 28,
         "goldAction": "conflict",
-        "action": "keep"
+        "action": "keep",
+        "unsure": false,
+        "margin": 0.6472,
+        "probabilities": {
+          "duplicate": 0.07055555555555554,
+          "refines": 0.07055555555555554,
+          "supersedes": 0.07055555555555554,
+          "contradicts": 0.07055555555555554,
+          "unrelated": 0.7177777777777778
+        }
       },
       {
         "id": "h-con-06",
@@ -2374,9 +3718,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 28,
+        "roundTripMs": 27,
         "goldAction": "conflict",
-        "action": "conflict"
+        "action": "conflict",
+        "unsure": false,
+        "margin": 0.4375,
+        "probabilities": {
+          "duplicate": 0.11249999999999999,
+          "refines": 0.11249999999999999,
+          "supersedes": 0.11249999999999999,
+          "contradicts": 0.55,
+          "unrelated": 0.11249999999999999
+        }
       },
       {
         "id": "h-con-07",
@@ -2391,7 +3744,16 @@
         "judgeMs": 0,
         "roundTripMs": 28,
         "goldAction": "conflict",
-        "action": "keep"
+        "action": "keep",
+        "unsure": false,
+        "margin": 0.4375,
+        "probabilities": {
+          "duplicate": 0.11249999999999999,
+          "refines": 0.55,
+          "supersedes": 0.11249999999999999,
+          "contradicts": 0.11249999999999999,
+          "unrelated": 0.11249999999999999
+        }
       },
       {
         "id": "h-con-08",
@@ -2404,9 +3766,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 27,
+        "roundTripMs": 30,
         "goldAction": "conflict",
-        "action": "keep"
+        "action": "keep",
+        "unsure": false,
+        "margin": 0.5083,
+        "probabilities": {
+          "duplicate": 0.09833333333333333,
+          "refines": 0.09833333333333333,
+          "supersedes": 0.09833333333333333,
+          "contradicts": 0.09833333333333333,
+          "unrelated": 0.6066666666666667
+        }
       },
       {
         "id": "h-con-09",
@@ -2418,10 +3789,19 @@
         "confidence": 0.6672727272727272,
         "judge": "heuristic",
         "fallback": null,
-        "judgeMs": 0,
-        "roundTripMs": 25,
+        "judgeMs": 1,
+        "roundTripMs": 31,
         "goldAction": "conflict",
-        "action": "keep"
+        "action": "keep",
+        "unsure": false,
+        "margin": 0.5841,
+        "probabilities": {
+          "duplicate": 0.08318181818181819,
+          "refines": 0.08318181818181819,
+          "supersedes": 0.08318181818181819,
+          "contradicts": 0.08318181818181819,
+          "unrelated": 0.6672727272727272
+        }
       },
       {
         "id": "h-con-10",
@@ -2434,9 +3814,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 20,
+        "roundTripMs": 38,
         "goldAction": "conflict",
-        "action": "keep"
+        "action": "keep",
+        "unsure": false,
+        "margin": 0.5679,
+        "probabilities": {
+          "duplicate": 0.08642857142857141,
+          "refines": 0.08642857142857141,
+          "supersedes": 0.08642857142857141,
+          "contradicts": 0.08642857142857141,
+          "unrelated": 0.6542857142857144
+        }
       },
       {
         "id": "h-con-11",
@@ -2449,9 +3838,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 21,
+        "roundTripMs": 37,
         "goldAction": "conflict",
-        "action": "keep"
+        "action": "keep",
+        "unsure": true,
+        "margin": 0.625,
+        "probabilities": {
+          "duplicate": 0.7,
+          "refines": 0.07500000000000001,
+          "supersedes": 0.07500000000000001,
+          "contradicts": 0.07500000000000001,
+          "unrelated": 0.07500000000000001
+        }
       },
       {
         "id": "h-con-12",
@@ -2463,10 +3861,19 @@
         "confidence": 0.55,
         "judge": "heuristic",
         "fallback": null,
-        "judgeMs": 0,
-        "roundTripMs": 21,
+        "judgeMs": 1,
+        "roundTripMs": 33,
         "goldAction": "conflict",
-        "action": "conflict"
+        "action": "conflict",
+        "unsure": false,
+        "margin": 0.4375,
+        "probabilities": {
+          "duplicate": 0.11249999999999999,
+          "refines": 0.11249999999999999,
+          "supersedes": 0.11249999999999999,
+          "contradicts": 0.55,
+          "unrelated": 0.11249999999999999
+        }
       },
       {
         "id": "h-con-13",
@@ -2478,10 +3885,19 @@
         "confidence": 0.7733333333333333,
         "judge": "heuristic",
         "fallback": null,
-        "judgeMs": 1,
-        "roundTripMs": 22,
+        "judgeMs": 0,
+        "roundTripMs": 32,
         "goldAction": "conflict",
-        "action": "keep"
+        "action": "keep",
+        "unsure": false,
+        "margin": 0.7167,
+        "probabilities": {
+          "duplicate": 0.05666666666666667,
+          "refines": 0.05666666666666667,
+          "supersedes": 0.05666666666666667,
+          "contradicts": 0.05666666666666667,
+          "unrelated": 0.7733333333333333
+        }
       },
       {
         "id": "h-con-14",
@@ -2494,9 +3910,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 30,
+        "roundTripMs": 29,
         "goldAction": "conflict",
-        "action": "keep"
+        "action": "keep",
+        "unsure": false,
+        "margin": 0.5083,
+        "probabilities": {
+          "duplicate": 0.09833333333333333,
+          "refines": 0.09833333333333333,
+          "supersedes": 0.09833333333333333,
+          "contradicts": 0.09833333333333333,
+          "unrelated": 0.6066666666666667
+        }
       },
       {
         "id": "h-unr-01",
@@ -2509,9 +3934,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 30,
+        "roundTripMs": 27,
         "goldAction": "keep",
-        "action": "keep"
+        "action": "keep",
+        "unsure": false,
+        "margin": 0.7861,
+        "probabilities": {
+          "duplicate": 0.042777777777777776,
+          "refines": 0.042777777777777776,
+          "supersedes": 0.042777777777777776,
+          "contradicts": 0.042777777777777776,
+          "unrelated": 0.8288888888888889
+        }
       },
       {
         "id": "h-unr-02",
@@ -2524,9 +3958,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 30,
+        "roundTripMs": 27,
         "goldAction": "keep",
-        "action": "keep"
+        "action": "keep",
+        "unsure": false,
+        "margin": 0.7464,
+        "probabilities": {
+          "duplicate": 0.05071428571428571,
+          "refines": 0.05071428571428571,
+          "supersedes": 0.05071428571428571,
+          "contradicts": 0.05071428571428571,
+          "unrelated": 0.7971428571428572
+        }
       },
       {
         "id": "h-unr-03",
@@ -2539,9 +3982,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 24,
+        "roundTripMs": 27,
         "goldAction": "keep",
-        "action": "keep"
+        "action": "keep",
+        "unsure": false,
+        "margin": 0.7167,
+        "probabilities": {
+          "duplicate": 0.05666666666666667,
+          "refines": 0.05666666666666667,
+          "supersedes": 0.05666666666666667,
+          "contradicts": 0.05666666666666667,
+          "unrelated": 0.7733333333333333
+        }
       },
       {
         "id": "h-unr-04",
@@ -2554,9 +4006,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 19,
+        "roundTripMs": 25,
         "goldAction": "keep",
-        "action": "keep"
+        "action": "keep",
+        "unsure": false,
+        "margin": 0.875,
+        "probabilities": {
+          "duplicate": 0.024999999999999994,
+          "refines": 0.024999999999999994,
+          "supersedes": 0.024999999999999994,
+          "contradicts": 0.024999999999999994,
+          "unrelated": 0.9
+        }
       },
       {
         "id": "h-unr-05",
@@ -2569,9 +4030,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 19,
+        "roundTripMs": 25,
         "goldAction": "keep",
-        "action": "keep"
+        "action": "keep",
+        "unsure": false,
+        "margin": 0.7687,
+        "probabilities": {
+          "duplicate": 0.04625000000000001,
+          "refines": 0.04625000000000001,
+          "supersedes": 0.04625000000000001,
+          "contradicts": 0.04625000000000001,
+          "unrelated": 0.815
+        }
       },
       {
         "id": "h-unr-06",
@@ -2583,10 +4053,19 @@
         "confidence": 0.7971428571428572,
         "judge": "heuristic",
         "fallback": null,
-        "judgeMs": 0,
-        "roundTripMs": 20,
+        "judgeMs": 1,
+        "roundTripMs": 29,
         "goldAction": "keep",
-        "action": "keep"
+        "action": "keep",
+        "unsure": false,
+        "margin": 0.7464,
+        "probabilities": {
+          "duplicate": 0.05071428571428571,
+          "refines": 0.05071428571428571,
+          "supersedes": 0.05071428571428571,
+          "contradicts": 0.05071428571428571,
+          "unrelated": 0.7971428571428572
+        }
       },
       {
         "id": "h-unr-07",
@@ -2599,9 +4078,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 20,
+        "roundTripMs": 29,
         "goldAction": "keep",
-        "action": "keep"
+        "action": "keep",
+        "unsure": false,
+        "margin": 0.675,
+        "probabilities": {
+          "duplicate": 0.065,
+          "refines": 0.065,
+          "supersedes": 0.065,
+          "contradicts": 0.065,
+          "unrelated": 0.74
+        }
       },
       {
         "id": "h-unr-08",
@@ -2614,9 +4102,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 20,
+        "roundTripMs": 31,
         "goldAction": "keep",
-        "action": "keep"
+        "action": "keep",
+        "unsure": false,
+        "margin": 0.875,
+        "probabilities": {
+          "duplicate": 0.024999999999999994,
+          "refines": 0.024999999999999994,
+          "supersedes": 0.024999999999999994,
+          "contradicts": 0.024999999999999994,
+          "unrelated": 0.9
+        }
       },
       {
         "id": "h-unr-09",
@@ -2629,9 +4126,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 20,
+        "roundTripMs": 31,
         "goldAction": "keep",
-        "action": "keep"
+        "action": "keep",
+        "unsure": false,
+        "margin": 0.6125,
+        "probabilities": {
+          "duplicate": 0.07750000000000001,
+          "refines": 0.07750000000000001,
+          "supersedes": 0.07750000000000001,
+          "contradicts": 0.07750000000000001,
+          "unrelated": 0.69
+        }
       },
       {
         "id": "h-unr-10",
@@ -2644,9 +4150,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 19,
+        "roundTripMs": 29,
         "goldAction": "keep",
-        "action": "keep"
+        "action": "keep",
+        "unsure": false,
+        "margin": 0.7167,
+        "probabilities": {
+          "duplicate": 0.05666666666666667,
+          "refines": 0.05666666666666667,
+          "supersedes": 0.05666666666666667,
+          "contradicts": 0.05666666666666667,
+          "unrelated": 0.7733333333333333
+        }
       },
       {
         "id": "h-unr-11",
@@ -2659,9 +4174,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 21,
+        "roundTripMs": 29,
         "goldAction": "keep",
-        "action": "keep"
+        "action": "keep",
+        "unsure": false,
+        "margin": 0.7167,
+        "probabilities": {
+          "duplicate": 0.05666666666666667,
+          "refines": 0.05666666666666667,
+          "supersedes": 0.05666666666666667,
+          "contradicts": 0.05666666666666667,
+          "unrelated": 0.7733333333333333
+        }
       },
       {
         "id": "h-unr-12",
@@ -2674,9 +4198,18 @@
         "judge": "heuristic",
         "fallback": null,
         "judgeMs": 0,
-        "roundTripMs": 16,
+        "roundTripMs": 21,
         "goldAction": "keep",
-        "action": "keep"
+        "action": "keep",
+        "unsure": false,
+        "margin": 0.7167,
+        "probabilities": {
+          "duplicate": 0.05666666666666667,
+          "refines": 0.05666666666666667,
+          "supersedes": 0.05666666666666667,
+          "contradicts": 0.05666666666666667,
+          "unrelated": 0.7733333333333333
+        }
       }
     ]
   },
@@ -2705,7 +4238,11 @@
         "h-ref-04@0.7",
         "h-con-03@0.7",
         "h-con-11@0.7"
-      ]
+      ],
+      "margin": {
+        "rightMin": 0.625,
+        "wrongMax": 0.625
+      }
     },
     "supersedes": {
       "bar": 0.5,
@@ -2720,7 +4257,11 @@
         "precision": 1,
         "recall": 0.6666666666666666
       },
-      "wrongAbove": []
+      "wrongAbove": [],
+      "margin": {
+        "rightMin": 0.4375,
+        "wrongMax": null
+      }
     },
     "contradicts": {
       "bar": 0.5,
@@ -2757,7 +4298,11 @@
         "h-sup-02@0.55",
         "h-sup-06@0.55",
         "h-sup-08@0.55"
-      ]
+      ],
+      "margin": {
+        "rightMin": 0.4375,
+        "wrongMax": 0.4375
+      }
     }
   },
   "tasks": {
