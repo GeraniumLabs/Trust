@@ -76,7 +76,8 @@ A full run is 160 judge calls plus about 30 writes, roughly 60,000 input tokens.
 | Judge | Pair accuracy | Macro-F1 | Harmful merges | Missed conflicts | Tasks |
 | --- | --- | --- | --- | --- | --- |
 | Oracle (gold labels) | 100% | 100% | 0 | 0 | 12/12 |
-| Jev (`jev-latest`, Nov 21, core set only) | 98% | 98% | 0 | 0 | 12/12 |
+| Jev (`jev-latest`), core set | 98% | 98% | 0 | 0 | 12/12 |
+| Jev (`jev-latest`), hard set | 93% | 94% | 0 | 2 of 14 | |
 | Heuristic, core set | 58% | 56.5% | 0 | 12 of 20 | 8/12 |
 | Heuristic, hard set | 48% | 47% | 0 | 12 of 14 | |
 | Clef-Flash | not run yet | | | | |
