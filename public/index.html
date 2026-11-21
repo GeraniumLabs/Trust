@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Trust: agent memory that knows where every memory came from</title>
+  <link rel="stylesheet" href="/style.css" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 16 16%27%3E%3Ccircle cx=%278%27 cy=%278%27 r=%276%27 fill=%27%23534ab7%27/%3E%3C/svg%3E" />
+</head>
+<body>
+  <header>
+    <h1>Trust</h1>
+    <p>Agent memory that knows where every memory came from. Two scripted agents work for two separate clients. Watch memories stay inside their matter, trace any memory to its sources and to the changes it influenced, and undo what a bad source taught.</p>
+  </header>
+
+  <main class="layout">
+    <section class="panel" aria-label="Demo steps">
+      <h2>The demo</h2>
+
+      <div class="moment" id="m1">
+        <h3><span class="n">1</span>Two agents, two matters</h3>
+        <p>Agent 1 works for Northwind, Agent 2 for Contoso. Each writes memories with their sources. Origin is attached by the server, not claimed by the agent.</p>
+        <div class="row"><button class="primary" id="b1">Start the agents</button></div>
+      </div>
+
+      <div class="moment" id="m2">
+        <h3><span class="n">2</span>Try to cross the wall</h3>
+        <p>Agent 2 asks for Northwind's memory. The request is checked on every call, refused, and logged in Contoso's audit trail without revealing anything about Northwind.</p>
+        <div class="row"><button id="b2" disabled>Agent 2 reads Northwind</button></div>
+      </div>
+
+      <div class="moment" id="m3">
+        <h3><span class="n">3</span>Trace a memory</h3>
+        <p>Why does Agent 1 believe "use shared money helpers"? Walk back to its sources, and forward to the session and pull request it influenced. Or click any node.</p>
+        <div class="row"><button id="b3" disabled>Trace n-2</button></div>
+      </div>
+
+      <div class="moment" id="m4">
+        <h3><span class="n">4</span>Poison a source, then recover</h3>
+        <p>A CI note claims billing tests are flaky. Agent 1 learns from it, builds on it, and merges a change. Remove the source and everything it taught is quarantined, with the affected change listed.</p>
+        <div class="row"><button id="b4" disabled>Inject the bad note</button><button id="b4b" disabled>Remove the source</button></div>
+      </div>
+
+      <div class="moment" id="m5">
+        <h3><span class="n">5</span>Promote across the wall</h3>
+        <p>A general technique from Northwind can help Contoso. It crosses only through review: client names and figures are stripped, a person approves, and Contoso sees it as advisory.</p>
+        <div class="row"><button id="b5" disabled>Propose promotion</button></div>
+        <div id="reviewBox"></div>
+      </div>
+
+      <div class="moment" id="mD">
+        <h3><span class="n">6</span>Two sessions disagree</h3>
+        <p>A third agent on Northwind concludes the opposite of an existing memory. Both are marked contested and still recalled, flagged, until a person decides. The decision becomes part of history.</p>
+        <div class="row"><button id="bD" disabled>Agent 3 contradicts n-2</button></div>
+        <div id="conflictBox"></div>
+      </div>
+
+      <div class="moment" id="mS">
+        <h3><span class="n">7</span>A source changes</h3>
+        <p>round.ts moves past the version the agents learned from. Everything drawn from it is flagged stale, with the merged change to re-check. Re-verify against the new version to clear it.</p>
+        <div class="row"><button id="bS" disabled>Change round.ts</button><button id="bS2" disabled>Re-verify n-1</button></div>
+      </div>
+
+      <div class="moment" id="m6">
+        <h3><span class="n">8</span>A new wall, mid-session</h3>
+        <p>Agent 1's supervisor joins Contoso work. A wall goes up and Agent 1's live session is paused on its very next call.</p>
+        <div class="row"><button id="b6" disabled>Add the wall</button></div>
+      </div>
+
+      <div class="moment">
+        <div class="row"><button id="bReset">Start over</button></div>
+        <p class="note">Each visit gets its own throwaway scopes that delete themselves after an hour.</p>
+        <p class="note" id="extras" hidden>Export: <a id="exportLink" target="_blank" rel="noopener">Northwind memory as an OKF bundle</a><br>Connect your own agent over MCP as Agent 2: <code id="mcpUrl"></code></p>
+      </div>
+    </section>
+
+    <section class="panel" aria-label="Memory graph">
+      <h2>Memory graph <span id="demoId" style="font-weight:400;color:var(--faint)"></span></h2>
+      <div class="graphwrap"><svg id="graph" viewBox="0 0 900 420" role="img" aria-label="Memory graph: sources, memories, recalling sessions and merged changes for each matter"></svg></div>
+      <div id="graphEmpty" class="empty">Press <b>Start the agents</b> to begin.</div>
+      <div class="legend">
+        <span><i style="background:var(--nw-bg);border-color:var(--nw)"></i>Northwind</span>
+        <span><i style="background:var(--ct-bg);border-color:var(--ct)"></i>Contoso</span>
+        <span><i style="background:var(--pr-bg);border-color:var(--pr)"></i>Firm precedent</span>
+        <span><i style="border-style:dashed;border-color:var(--danger)"></i>Quarantined</span>
+        <span><i style="border-style:dashed;border-color:var(--stale)"></i>Stale</span>
+        <span><i style="border-style:dashed;border-color:var(--contest)"></i>Contested</span>
+        <span>Dashed line: advisory recall</span>
+      </div>
+    </section>
+
+    <aside>
+      <section class="panel detail" aria-label="Selection">
+        <h2>Provenance</h2>
+        <div id="detail" class="note">Click a memory to see where it came from and what it affected.</div>
+      </section>
+      <section class="panel" aria-label="API calls">
+        <h2>API calls</h2>
+        <div id="log"><div class="note">Every step is a real call to the Trust API. They appear here.</div></div>
+      </section>
+    </aside>
+  </main>
+  <footer>Trust is open source. Built on Cloudflare Workers and Durable Objects (SQLite).</footer>
+  <script src="/app.js" type="module"></script>
+</body>
+</html>

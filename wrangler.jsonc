@@ -1,0 +1,16 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "trust-demo",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-11-01",
+  // The demo page. Requests to /api/* fall through to the Worker.
+  "assets": { "directory": "./public", "binding": "ASSETS", "run_worker_first": ["/api/*"] },
+  "durable_objects": {
+    "bindings": [
+      { "name": "REGISTRY", "class_name": "Registry" },
+      { "name": "SCOPE", "class_name": "Scope" }
+    ]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Registry", "Scope"] }],
+  "observability": { "enabled": true }
+}
