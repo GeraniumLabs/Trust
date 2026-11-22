@@ -7,7 +7,6 @@ import assert from "node:assert/strict";
 const BASE = process.env.BASE_URL ?? "http://localhost:8787";
 let demo;
 let admin; // this space's admin token
-const BOOT = process.env.TRUST_BOOTSTRAP_TOKEN; // set when the Worker runs with one
 const tokens = {}; // session id -> agent token
 
 // Agent actions carry the acting session's token; everything else carries the admin token.
@@ -36,7 +35,7 @@ async function test(name, fn) {
   console.log(`ok - ${name}`);
 }
 
-const created = await api("POST", "/demo", undefined, BOOT);
+const created = await api("POST", "/demo");
 demo = created.data.demo;
 admin = created.data.adminToken;
 assert.ok(demo, "demo created");
@@ -292,7 +291,7 @@ await test("tokens are never stored or shown in clear", async () => {
 });
 
 await test("another space's admin token is useless here", async () => {
-  const other = (await api("POST", "/demo", undefined, BOOT)).data.adminToken;
+  const other = (await api("POST", "/demo")).data.adminToken;
   assert.equal((await api("GET", `/demo/${demo}/graph`, undefined, other)).status, 401);
 });
 
@@ -318,7 +317,7 @@ await test("MCP refuses session URLs and the admin token", async () => {
 // ---------- judge: dedupe, supersede, trust rule (default heuristic judge) ----------
 // A fresh demo: the one above has a wall on Northwind by now.
 const firstDemo = demo;
-const fresh = (await api("POST", "/demo", undefined, BOOT)).data;
+const fresh = (await api("POST", "/demo")).data;
 demo = fresh.demo;
 admin = fresh.adminToken;
 const j1 = (await post("/sessions", { scope: "contoso", agent: "claude-code", supervisor: "Casey" })).data;
@@ -410,17 +409,29 @@ await test("the judge endpoint scores a pair without storing it", async () => {
   assert.equal(out[0].relation, "contradicts");
 });
 
-// ---------- persistent spaces (need the Worker to run with TRUST_BOOTSTRAP_TOKEN) ----------
-if (!BOOT) {
-  console.log("skip - persistent spaces: set TRUST_BOOTSTRAP_TOKEN for the Worker and this script");
-} else {
+// ---------- creating spaces is open, within limits ----------
+// Needs the Worker to run with TRUST_SPACES_PER_IP set (scripts/ci.sh uses 3).
+if (process.env.TRUST_SPACES_PER_IP) {
+  await test("one visitor can create only so many spaces a day", async () => {
+    const limit = Number(process.env.TRUST_SPACES_PER_IP);
+    const ip = `203.0.113.${Math.floor(Math.random() * 250) + 1}`;
+    const make = () => fetch(`${BASE}/api/spaces`, { method: "POST", headers: { "content-type": "application/json", "cf-connecting-ip": ip }, body: JSON.stringify({ scopes: [{ id: "p", kind: "project" }] }) });
+    for (let i = 0; i < limit; i++) assert.equal((await make()).status, 200);
+    const over = await make();
+    assert.equal(over.status, 429);
+    assert.ok(Number(over.headers.get("retry-after")) > 0);
+    assert.match((await over.json()).error, /as many spaces as one visitor can today/);
+    assert.equal((await api("POST", "/demo")).status, 200, "another visitor isn't affected");
+  });
+}
+
+// ---------- persistent spaces ----------
+{
   let space, spaceAdmin, sess;
-  await test("a persistent space needs the bootstrap token and gets its own scopes", async () => {
+  await test("anyone can create a persistent space, with its own scopes and admin token", async () => {
     const def = { name: "Mergery", scopes: [{ id: "mergery", label: "mergery.dev repo", kind: "project" }] };
-    assert.equal((await api("POST", "/spaces", def)).status, 401, "no bootstrap token");
-    assert.equal((await api("POST", "/spaces", def, admin)).status, 401, "an admin token isn't the bootstrap token");
-    assert.equal((await api("POST", "/spaces", { scopes: [{ id: "Bad Id", kind: "project" }] }, BOOT)).status, 400);
-    const r = (await api("POST", "/spaces", def, BOOT)).data;
+    assert.equal((await api("POST", "/spaces", { scopes: [{ id: "Bad Id", kind: "project" }] })).status, 400);
+    const r = (await api("POST", "/spaces", def)).data;
     space = r.space;
     spaceAdmin = r.adminToken;
     assert.equal(r.persistent, true);

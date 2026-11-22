@@ -11,7 +11,9 @@ interface Env {
   SCOPE: DurableObjectNamespace;
   REGISTRY: DurableObjectNamespace;
   ASSETS: Fetcher;
-  TRUST_BOOTSTRAP_TOKEN?: string; // when set, only its holder can create spaces
+  // Anyone can create a space; these limit how many. A day is 24 hours. "0" means no limit.
+  TRUST_SPACES_PER_IP?: string; // per visitor IP a day, default 10 (loopback and service bindings aren't counted)
+  TRUST_SPACES_PER_DAY?: string; // for the whole server a day, default 1000
 }
 
 const DEMO_SCOPES: ScopeDef[] = [
@@ -75,16 +77,30 @@ function influenced(recalledBy: any[], changes: any[]) {
   return changes.filter((c) => first.has(c.session) && Number(c.at) >= first.get(c.session)!);
 }
 
+const DAY = 24 * 3600 * 1000;
+const limitOf = (v: string | undefined, d: number) => (v === undefined || v === "" || isNaN(Number(v)) ? d : Math.max(0, Number(v)));
+
+/** A 429 when this visitor, or the whole server, has created its share of spaces today; else null. */
+async function creationLimit(req: Request, env: Env): Promise<Response | null> {
+  const counter = (name: string) => env.REGISTRY.get(env.REGISTRY.idFromName(`__limit:${name}`)) as unknown as Registry;
+  const tooMany = (what: string, retryAfter: number) =>
+    new Response(JSON.stringify({ error: `${what} Try again in ${Math.ceil(retryAfter / 3600)} hour(s).` }), { status: 429, headers: { "content-type": "application/json", "retry-after": String(retryAfter) } });
+  // Cloudflare sets CF-Connecting-IP on every request from the internet. Calls over a service
+  // binding (another Worker on the same account) and local development have none or a loopback one.
+  const ip = req.headers.get("cf-connecting-ip");
+  if (ip && !/^(127\.|::1$|::ffff:127\.)/.test(ip)) {
+    const tag = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`trust-ip:${ip}`)))).slice(0, 12).map((b) => b.toString(16).padStart(2, "0")).join("");
+    const mine = await counter(`ip:${tag}`).hit(limitOf(env.TRUST_SPACES_PER_IP, 10), DAY);
+    if (!mine.ok) return tooMany("You've created as many spaces as one visitor can today.", mine.retryAfter);
+  }
+  const all = await counter("all").hit(limitOf(env.TRUST_SPACES_PER_DAY, 1000), DAY);
+  if (!all.ok) return tooMany("This server has created as many spaces as it allows today.", all.retryAfter);
+  return null;
+}
+
 const bearer = (req: Request) => req.headers.get("authorization")?.match(/^Bearer\s+(\S+)$/i)?.[1] ?? null;
 
 // Constant-time comparison of two secrets (via their hashes, so lengths don't leak either).
-async function sameSecret(a: string | null, b: string) {
-  if (!a) return false;
-  const [x, y] = await Promise.all([a, b].map(async (v) => new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(v)))));
-  let diff = 0;
-  for (let i = 0; i < x.length; i++) diff |= x[i] ^ y[i];
-  return diff === 0;
-}
 
 const handler = {
   async fetch(req: Request, env: Env): Promise<Response> {
@@ -96,20 +112,21 @@ const handler = {
     const body: any = req.method === "POST" ? await req.json().catch(() => ({})) : {};
 
     try {
-      // POST /api/demo -> a throwaway demo space (an hour, capped). Open on the public demo; when
-      // TRUST_BOOTSTRAP_TOKEN is set, only its holder can create spaces.
+      // Creating a space is open to anyone, within the limits above.
+      if ((parts[1] === "demo" || parts[1] === "spaces") && parts.length === 2 && req.method === "POST") {
+        const limited = await creationLimit(req, env);
+        if (limited) return limited;
+      }
+      // POST /api/demo -> a throwaway demo space (an hour, capped).
       if (parts[1] === "demo" && parts.length === 2 && req.method === "POST") {
-        if (env.TRUST_BOOTSTRAP_TOKEN && !(await sameSecret(bearer(req), env.TRUST_BOOTSTRAP_TOKEN))) return fail("Creating a space needs the bootstrap token.", 401);
         const id = crypto.randomUUID().slice(0, 8);
         const reg = env.REGISTRY.get(env.REGISTRY.idFromName(id)) as unknown as Registry;
         const { adminToken } = await reg.setup(DEMO_SCOPES);
         return json({ demo: id, scopes: DEMO_SCOPES, adminToken });
       }
-      // POST /api/spaces -> a persistent space with its own scopes. Always needs the bootstrap token.
+      // POST /api/spaces -> a persistent space with its own scopes. Its admin token is returned once.
       // { name?, scopes: [{ id, label?, kind: "project" | "matter" | "precedent", client? }] }
       if (parts[1] === "spaces" && parts.length === 2 && req.method === "POST") {
-        if (!env.TRUST_BOOTSTRAP_TOKEN) return fail("Persistent spaces are off: set TRUST_BOOTSTRAP_TOKEN to enable them.", 403);
-        if (!(await sameSecret(bearer(req), env.TRUST_BOOTSTRAP_TOKEN))) return fail("Creating a space needs the bootstrap token.", 401);
         const defs = (Array.isArray(body.scopes) ? body.scopes : []).map(validScope);
         if (!defs.length || defs.length > 50) return fail("a space needs 1 to 50 scopes", 400);
         if (new Set(defs.map((d: ScopeDef) => d.id)).size !== defs.length) return fail("scope ids must be unique", 400);

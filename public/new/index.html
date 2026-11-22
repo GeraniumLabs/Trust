@@ -32,13 +32,11 @@ button.ghost{background:transparent;color:var(--thread);border:1px solid var(--r
 <body>
 <main>
   <h1>New Trust space</h1>
-  <p>A persistent space with one project scope. You get its URL and an admin key to paste into Mergery's <b>Settings › Trust</b>, or anything else that talks to Trust.</p>
+  <p>Your own persistent space for agent memory, with one project scope. You get its URL and an admin key: paste both into a Mergery project's <b>Settings › Trust</b>, or anything else that talks to Trust. No account needed.</p>
 
   <form id="f">
     <label>Name <span class="hint">Shown in the space's info, e.g. the Mergery project it's for.</span>
       <input id="name" maxlength="120" placeholder="todo-service" autocomplete="off" required></label>
-    <label>Bootstrap token <span class="hint">This server's TRUST_BOOTSTRAP_TOKEN. It's sent once to create the space and isn't kept in this page.</span>
-      <input id="boot" type="password" autocomplete="off" required></label>
     <p class="err" id="err" hidden></p>
     <div><button id="go">Create space</button></div>
   </form>
@@ -61,14 +59,13 @@ button.ghost{background:transparent;color:var(--thread);border:1px solid var(--r
     try {
       const r = await fetch("/api/spaces", {
         method: "POST",
-        headers: { "content-type": "application/json", authorization: `Bearer ${$("boot").value.trim()}` },
+        headers: { "content-type": "application/json" },
         body: JSON.stringify({ name, scopes: [{ id: "project", label: name || "project", kind: "project" }] }),
       });
       const d = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(d.error || `Trust answered HTTP ${r.status}`);
       $("url").textContent = `${location.origin}/api/spaces/${d.space}`;
       $("key").textContent = d.adminToken;
-      $("boot").value = "";
       $("f").hidden = true;
       $("out").hidden = false;
     } catch (err) {

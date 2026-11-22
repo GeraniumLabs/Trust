@@ -39,7 +39,6 @@ const ADMIN = {};
 const TOKENS = {};
 const AGENT_ACTIONS = /\/(remember|recall|relate|retract)$/;
 function tokenFor(method, path, body) {
-  if (path === "/demo" || path === "/spaces") return process.env.TRUST_BOOTSTRAP_TOKEN;
   const space = path.split("/")[2];
   if (method === "POST" && AGENT_ACTIONS.test(path)) return TOKENS[body?.session];
   return ADMIN[space];

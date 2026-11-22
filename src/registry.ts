@@ -145,6 +145,21 @@ export class Registry extends DurableObject<RegistryEnv> {
     return this.ctx.storage.sql.exec(`SELECT COUNT(*) AS n FROM scopes`).one().n as number > 0;
   }
 
+  /**
+   * Rate limiting, on a registry instance used only as a counter (named "__limit:…"): records a
+   * hit and says whether it's within `limit` per `windowMs`. A limit of 0 means no limit.
+   */
+  async hit(limit: number, windowMs: number): Promise<{ ok: boolean; count: number; retryAfter: number }> {
+    const sql = this.ctx.storage.sql;
+    sql.exec(`CREATE TABLE IF NOT EXISTS hits (at INTEGER)`);
+    const now = Date.now();
+    sql.exec(`DELETE FROM hits WHERE at < ?`, now - windowMs);
+    const rows = sql.exec(`SELECT at FROM hits ORDER BY at`).toArray() as any[];
+    if (limit > 0 && rows.length >= limit) return { ok: false, count: rows.length, retryAfter: Math.ceil((rows[0].at + windowMs - now) / 1000) };
+    sql.exec(`INSERT INTO hits VALUES (?)`, now);
+    return { ok: true, count: rows.length + 1, retryAfter: 0 };
+  }
+
   async countOp() {
     this.init();
     const n = this.next("ops");
