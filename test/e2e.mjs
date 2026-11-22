@@ -310,6 +310,9 @@ await test("MCP refuses session URLs and the admin token", async () => {
   const call = async (path, token) => (await fetch(`${BASE}${path}`, { method: "POST", headers: { "content-type": "application/json", ...(token ? { authorization: `Bearer ${token}` } : {}) }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "memory_recall", arguments: { query: "x" } } }) })).json();
   assert.match((await call(`/mcp/${demo}/${s2.id}`)).error.message, /no longer accepted/);
   assert.match((await call(`/mcp/${demo}`, admin)).error.message, /session token/);
+  const list = async (token) => (await fetch(`${BASE}/mcp/${demo}`, { method: "POST", headers: { "content-type": "application/json", ...(token ? { authorization: `Bearer ${token}` } : {}) }, body: JSON.stringify({ jsonrpc: "2.0", id: 2, method: "tools/list" }) })).json();
+  assert.ok((await list(admin)).error, "tools/list refuses the admin token too");
+  assert.ok((await list()).error, "and no token");
 });
 
 // ---------- judge: dedupe, supersede, trust rule (default heuristic judge) ----------

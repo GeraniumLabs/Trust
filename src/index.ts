@@ -451,6 +451,13 @@ async function mcp(req: Request, env: Env, url: URL): Promise<Response> {
   const reply = (result: unknown) => json({ jsonrpc: "2.0", id: msg.id, result });
   const error = (code: number, message: string) => json({ jsonrpc: "2.0", id: msg.id, error: { code, message } });
 
+  // Every MCP request, the handshake included, needs an agent's session token.
+  if (legacy) return error(-32001, "Session URLs are no longer accepted. Connect to /mcp/<space> and send the session token as Authorization: Bearer <token>.");
+  const reg = env.REGISTRY.get(env.REGISTRY.idFromName(demo)) as unknown as Registry;
+  const token = bearer(req);
+  const caller = await reg.authenticate(token).catch(() => null);
+  if (caller?.kind !== "agent") return error(-32001, caller ? "MCP is for agents: use a session token, not the admin token." : "Missing, unknown, expired or revoked token.");
+
   if (msg.method === "initialize") {
     return reply({ protocolVersion: msg.params?.protocolVersion ?? "2025-06-18", capabilities: { tools: {} }, serverInfo: { name: "trust", version: "0.1.0" }, instructions: "Agent memory with provenance. Cite sources when you remember; check sources when you recall." });
   }
@@ -458,13 +465,9 @@ async function mcp(req: Request, env: Env, url: URL): Promise<Response> {
   if (msg.method === "tools/list") return reply({ tools: MCP_TOOLS });
   if (msg.method !== "tools/call") return error(-32601, `Method not found: ${msg.method}`);
 
-  // Route tool calls through the same HTTP API with the caller's token, so MCP gets exactly the
+  // Tool calls go through the same HTTP API with the caller's token, so MCP gets exactly the
   // same authorization.
-  if (legacy) return error(-32001, "Session URLs are no longer accepted. Connect to /mcp/<space> and send the session token as Authorization: Bearer <token>.");
-  const reg = env.REGISTRY.get(env.REGISTRY.idFromName(demo)) as unknown as Registry;
-  const token = bearer(req);
-  const caller = await reg.authenticate(token).catch(() => null);
-  if (caller?.kind !== "agent") return error(-32001, caller ? "MCP is for agents: use a session token, not the admin token." : "Missing, unknown, expired or revoked token.");
+
   const sess = caller.session;
   const session = sess.id;
   const a = msg.params?.arguments ?? {};
