@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>New Trust space</title>
+<style>
+:root{color-scheme:light dark;--paper:#f2f4f3;--card:#fbfcfb;--ink:#17242b;--muted:#4c5a61;--rule:#c9d1d0;--thread:#175d63;--cut:#a8321f;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;--mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace}
+@media(prefers-color-scheme:dark){:root{--paper:#162127;--card:#1d2a31;--ink:#e6ecea;--muted:#a9b6b8;--rule:#34454d;--thread:#6cc3c2;--cut:#f08a76}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.55 var(--sans)}
+main{max-width:560px;margin:0 auto;padding:40px 20px}
+h1{font-size:28px;line-height:1.15;margin:0 0 8px}
+p{margin:0 0 16px;color:var(--muted)}
+a{color:var(--thread)}
+form,.out{background:var(--card);border:1px solid var(--rule);border-radius:10px;padding:20px;display:grid;gap:14px}
+label{display:grid;gap:6px;font-weight:600;font-size:14px}
+input{font:16px var(--sans);padding:10px 12px;border:1px solid var(--rule);border-radius:8px;background:var(--paper);color:var(--ink);min-height:44px;width:100%}
+input:focus,button:focus-visible{outline:2px solid var(--thread);outline-offset:2px}
+button{font:600 15px var(--sans);min-height:44px;padding:0 18px;border-radius:8px;border:0;background:var(--thread);color:var(--paper);cursor:pointer}
+button.ghost{background:transparent;color:var(--thread);border:1px solid var(--rule);min-height:36px;padding:0 12px;font-size:14px}
+.hint{font-weight:400;color:var(--muted);font-size:13px}
+.err{color:var(--cut);margin:0}
+.field{display:grid;gap:6px}
+.val{display:flex;gap:8px;align-items:center}
+.val code{flex:1;font:14px var(--mono);overflow-wrap:anywhere;background:var(--paper);border:1px solid var(--rule);border-radius:8px;padding:10px 12px}
+.warn{font-size:14px;color:var(--ink)}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<main>
+  <h1>New Trust space</h1>
+  <p>A persistent space with one project scope. You get its URL and an admin key to paste into Mergery's <b>Settings › Trust</b>, or anything else that talks to Trust.</p>
+
+  <form id="f">
+    <label>Name <span class="hint">Shown in the space's info, e.g. the Mergery project it's for.</span>
+      <input id="name" maxlength="120" placeholder="todo-service" autocomplete="off" required></label>
+    <label>Bootstrap token <span class="hint">This server's TRUST_BOOTSTRAP_TOKEN. It's sent once to create the space and isn't kept in this page.</span>
+      <input id="boot" type="password" autocomplete="off" required></label>
+    <p class="err" id="err" hidden></p>
+    <div><button id="go">Create space</button></div>
+  </form>
+
+  <div class="out" id="out" hidden>
+    <div class="field"><b>Space URL</b><div class="val"><code id="url"></code><button class="ghost" data-copy="url">Copy</button></div></div>
+    <div class="field"><b>Admin key</b><div class="val"><code id="key"></code><button class="ghost" data-copy="key">Copy</button></div></div>
+    <p class="warn"><b>Save the key now.</b> Trust keeps only its hash, so this page can't show it again. Anyone with it can read and change this space.</p>
+    <div><button class="ghost" id="again">Make another</button></div>
+  </div>
+</main>
+<script>
+{
+  const $ = (id) => document.getElementById(id);
+  $("f").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    $("err").hidden = true;
+    $("go").disabled = true;
+    const name = $("name").value.trim();
+    try {
+      const r = await fetch("/api/spaces", {
+        method: "POST",
+        headers: { "content-type": "application/json", authorization: `Bearer ${$("boot").value.trim()}` },
+        body: JSON.stringify({ name, scopes: [{ id: "project", label: name || "project", kind: "project" }] }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || `Trust answered HTTP ${r.status}`);
+      $("url").textContent = `${location.origin}/api/spaces/${d.space}`;
+      $("key").textContent = d.adminToken;
+      $("boot").value = "";
+      $("f").hidden = true;
+      $("out").hidden = false;
+    } catch (err) {
+      $("err").textContent = `Couldn't create the space: ${err.message}`;
+      $("err").hidden = false;
+    } finally {
+      $("go").disabled = false;
+    }
+  });
+  for (const b of document.querySelectorAll("[data-copy]")) {
+    b.addEventListener("click", async () => {
+      try { await navigator.clipboard.writeText($(b.dataset.copy).textContent); b.textContent = "Copied"; }
+      catch { b.textContent = "Select and copy"; }
+      setTimeout(() => (b.textContent = "Copy"), 1500);
+    });
+  }
+  $("again").addEventListener("click", () => { $("out").hidden = true; $("f").hidden = false; $("name").value = ""; $("key").textContent = ""; });
+}
+</script>
+</body>
+</html>

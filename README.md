@@ -61,6 +61,8 @@ curl -X POST https://trust.example/api/spaces -H "authorization: Bearer $TRUST_B
 
 Every route below works on both, as `/api/demo/:id/...` or `/api/spaces/:id/...`.
 
+**Making one by hand.** Open `/new` on your Trust server, give the space a name and paste the bootstrap token. It shows the space URL and admin key (once), ready to paste into Mergery's **Settings › Trust** or anything else that talks to Trust.
+
 ## API (per space)
 
 **Who** is the token the call needs: admin, agent, or either (an agent only within its own scope).
