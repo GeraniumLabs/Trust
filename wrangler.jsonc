@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "trust-demo",
+  "name": "trust",
   "main": "src/index.ts",
   "compatibility_date": "2026-11-01",
   // Static site: the landing page at /, the interactive demo at /demo/. /api/* and /mcp/* go to the Worker.
