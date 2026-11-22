@@ -11,6 +11,8 @@ cd "$(dirname "$0")/.."
 export WRANGLER_SEND_METRICS=false
 # A low per-visitor limit, so the e2e checks can hit it.
 export TRUST_SPACES_PER_IP=3
+# Sign-in without GitHub, with a throwaway cookie key, so the ownership checks run.
+export TRUST_DEV_LOGIN=1
 PIDS=()
 cleanup() { for p in "${PIDS[@]:-}"; do kill "$p" 2>/dev/null || true; done; }
 trap cleanup EXIT
@@ -23,7 +25,7 @@ wait_for() { # url, log file
 node scripts/offline-config.mjs
 
 echo "== Worker with the heuristic judge"
-npx wrangler dev -c .wrangler.offline.jsonc --port 8787 --var TRUST_JUDGE:heuristic --var "TRUST_SPACES_PER_IP:$TRUST_SPACES_PER_IP" > /tmp/trust-heuristic.log 2>&1 &
+npx wrangler dev -c .wrangler.offline.jsonc --port 8787 --var TRUST_JUDGE:heuristic --var "TRUST_SPACES_PER_IP:$TRUST_SPACES_PER_IP" --var TRUST_DEV_LOGIN:1 --var "TRUST_SESSION_KEY:ci-$RANDOM-$RANDOM-$RANDOM" > /tmp/trust-heuristic.log 2>&1 &
 PIDS+=($!)
 wait_for http://localhost:8787/ /tmp/trust-heuristic.log
 
@@ -35,7 +37,7 @@ BASE_URL=http://localhost:8787 node eval/score.mjs --no-save --max-costly 0 --mi
 cleanup; PIDS=(); sleep 2
 
 echo "== Oracle eval"
-unset TRUST_SPACES_PER_IP
+unset TRUST_SPACES_PER_IP TRUST_DEV_LOGIN
 node eval/oracle.mjs > /tmp/trust-oracle.log 2>&1 &
 PIDS+=($!)
 npx wrangler dev -c .wrangler.offline.jsonc --port 8788 --var TRUST_JUDGE:systemone --var TRUST_JUDGE_URL:http://127.0.0.1:8799 --var TRUST_JUDGE_MODEL:oracle > /tmp/trust-oracle-worker.log 2>&1 &

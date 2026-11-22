@@ -412,10 +412,10 @@ await test("the judge endpoint scores a pair without storing it", async () => {
 // ---------- creating spaces is open, within limits ----------
 // Needs the Worker to run with TRUST_SPACES_PER_IP set (scripts/ci.sh uses 3).
 if (process.env.TRUST_SPACES_PER_IP) {
-  await test("one visitor can create only so many spaces a day", async () => {
+  await test("one visitor can create only so many demo spaces a day", async () => {
     const limit = Number(process.env.TRUST_SPACES_PER_IP);
     const ip = `203.0.113.${Math.floor(Math.random() * 250) + 1}`;
-    const make = () => fetch(`${BASE}/api/spaces`, { method: "POST", headers: { "content-type": "application/json", "cf-connecting-ip": ip }, body: JSON.stringify({ scopes: [{ id: "p", kind: "project" }] }) });
+    const make = () => fetch(`${BASE}/api/demo`, { method: "POST", headers: { "content-type": "application/json", "cf-connecting-ip": ip } });
     for (let i = 0; i < limit; i++) assert.equal((await make()).status, 200);
     const over = await make();
     assert.equal(over.status, 429);
@@ -425,10 +425,60 @@ if (process.env.TRUST_SPACES_PER_IP) {
   });
 }
 
+// ---------- signing in to own spaces (needs TRUST_SESSION_KEY and TRUST_DEV_LOGIN=1, as scripts/ci.sh sets) ----------
+if (process.env.TRUST_DEV_LOGIN === "1") {
+  const outside = { "cf-connecting-ip": "198.51.100.7" }; // a visitor from the internet, not the operator's own Worker
+  const signIn = async (login) => {
+    const r = await fetch(`${BASE}/auth/dev?login=${login}`, { redirect: "manual" });
+    return r.headers.get("set-cookie").split(";")[0];
+  };
+  const as = (cookie, method, path, body) => fetch(`${BASE}/api${path}`, { method, headers: { "content-type": "application/json", ...outside, ...(cookie ? { cookie } : {}) }, body: body ? JSON.stringify(body) : undefined });
+  const def = { name: "my project", scopes: [{ id: "project", kind: "project" }] };
+
+  await test("a visitor must sign in to create a space; a signed-in person owns what they create", async () => {
+    const anon = await as(null, "POST", "/spaces", def);
+    assert.equal(anon.status, 401);
+    assert.match((await anon.json()).error, /Sign in with GitHub/);
+    assert.equal((await as(null, "GET", "/me")).status, 401);
+    const ada = await signIn("ada");
+    assert.equal((await (await as(ada, "GET", "/me")).json()).login, "ada");
+    const made = await (await as(ada, "POST", "/spaces", def)).json();
+    assert.match(made.adminToken, /^trust_adm_/);
+    const mine = await (await as(ada, "GET", "/me/spaces")).json();
+    assert.equal(mine[0].space, made.space);
+    assert.equal(mine[0].name, "my project");
+    assert.match(mine[0].url, new RegExp(`/api/spaces/${made.space}$`));
+    assert.equal(JSON.stringify(mine).includes("trust_adm_"), false, "the list never shows keys");
+  });
+
+  await test("an owner who lost the key gets a new one; the old one stops working; nobody else can", async () => {
+    const ada = await signIn("ada"), bo = await signIn("bo");
+    const made = await (await as(ada, "POST", "/spaces", def)).json();
+    assert.equal((await api("GET", `/spaces/${made.space}`, undefined, made.adminToken)).status, 200);
+    assert.equal((await as(bo, "POST", `/me/spaces/${made.space}/admin-key`, {})).status, 404, "not bo's space");
+    const fresh = await (await as(ada, "POST", `/me/spaces/${made.space}/admin-key`, {})).json();
+    assert.notEqual(fresh.adminToken, made.adminToken);
+    assert.equal((await api("GET", `/spaces/${made.space}`, undefined, made.adminToken)).status, 401, "old key revoked");
+    assert.equal((await api("GET", `/spaces/${made.space}`, undefined, fresh.adminToken)).status, 200);
+    // Deleting the space takes it off the owner's list.
+    assert.equal((await api("DELETE", `/spaces/${made.space}?confirm=${made.space}`, undefined, fresh.adminToken)).status, 200);
+    assert.equal((await (await as(ada, "GET", "/me/spaces")).json()).some((x) => x.space === made.space), false);
+  });
+
+  await test("a forged or tampered sign-in cookie is refused", async () => {
+    const ada = await signIn("ada");
+    const [name, value] = ada.split("=");
+    const [body, mac] = value.split(".");
+    const forged = `${name}=${Buffer.from(JSON.stringify({ id: "dev-ada", login: "mallory", exp: Date.now() + 1e9 })).toString("base64url")}.${mac}`;
+    assert.equal((await as(forged, "GET", "/me")).status, 401);
+    assert.equal((await as(`${name}=${body}.AAAA`, "GET", "/me")).status, 401);
+  });
+}
+
 // ---------- persistent spaces ----------
 {
   let space, spaceAdmin, sess;
-  await test("anyone can create a persistent space, with its own scopes and admin token", async () => {
+  await test("the operator's own Worker can create a persistent space, with its own scopes and admin token", async () => {
     const def = { name: "Mergery", scopes: [{ id: "mergery", label: "mergery.dev repo", kind: "project" }] };
     assert.equal((await api("POST", "/spaces", { scopes: [{ id: "Bad Id", kind: "project" }] })).status, 400);
     const r = (await api("POST", "/spaces", def)).data;

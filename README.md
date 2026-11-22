@@ -39,7 +39,7 @@ Origin is attached by the server from the session. Agents can add sources but ca
 
 Every call carries a bearer token, and the token alone decides who is calling.
 
-- **Admin token.** Returned once, when a space is created (`POST /api/demo`). It belongs to the person or service running the space: starting agent sessions, rollback, remove-by-source, walls, reviews, conflict resolution, the graph and exports. Anyone can create a space, within limits per visitor and per server (below), so there's no key to get first.
+- **Admin token.** Returned once, when a space is created (`POST /api/demo`). It belongs to the person or service running the space: starting agent sessions, rollback, remove-by-source, walls, reviews, conflict resolution, the graph and exports. People create persistent spaces by signing in with GitHub on `/new`, and own what they create (below).
 - **Agent tokens.** Returned once, when the admin starts a session (`POST sessions`). The session fixes the agent's name, supervisor and scope, and every memory it writes carries them, so an agent can't claim to be someone else. Agents can remember, recall, relate and retract, and read provenance in their own scope (plus advisory precedent). Tokens expire after 12 hours.
 - **Revocation.** `POST sessions/:id/end` (the admin, or the session itself) ends a session and revokes its token. A wall pauses the supervisor's sessions on their next call.
 - **Storage.** Only a SHA-256 hash of each token is stored, so a copy of the database can't be replayed as credentials. Tokens are prefixed `trust_adm_` / `trust_agt_` so secret scanners can spot them.
@@ -51,9 +51,10 @@ A session id in a request body is accepted only as a cross-check: if it doesn't 
 A space is one Registry Durable Object (sessions, tokens, walls, audit) plus one Scope Durable Object per scope (memories, sources, receipts, judgments), each with its own SQLite store. There are two kinds:
 
 - **Demo spaces** (`POST /api/demo`): the Northwind, Contoso and precedent scopes, deleted after an hour, with an operation cap.
-- **Persistent spaces** (`POST /api/spaces`, open to anyone): your own scopes, kept until an admin deletes the space. Scope kinds are `project` (a codebase, say), `matter` (client work, with names stripped on promotion) and `precedent` (at most one; reviewed, de-identified knowledge every scope can read as advisory).
+- **Persistent spaces** (`POST /api/spaces`, signed in with GitHub, or from the operator's own Worker): your own scopes, kept until an admin deletes the space. Scope kinds are `project` (a codebase, say), `matter` (client work, with names stripped on promotion) and `precedent` (at most one; reviewed, de-identified knowledge every scope can read as advisory).
 
 ```sh
+# From a Worker with a service binding to Trust (no person signed in); people use /new instead.
 curl -X POST https://trust.example/api/spaces \
   -d '{"name":"Mergery","scopes":[{"id":"mergery","label":"mergery.dev repo","kind":"project"}]}'
 # -> { "space": "a1b2c3d4e5f6", "adminToken": "trust_adm_...", ... }
@@ -61,9 +62,21 @@ curl -X POST https://trust.example/api/spaces \
 
 Every route below works on both, as `/api/demo/:id/...` or `/api/spaces/:id/...`.
 
-**Making one by hand.** Open `/new` on a Trust server and give the space a name. It shows the space URL and admin key (once), ready to paste into Mergery's **Settings › Trust** or anything else that talks to Trust.
+**Making one as a person.** Open `/new` and sign in with GitHub. Name the space and it shows the space URL and admin key (once), ready to paste into Mergery's **Settings › Trust** or anything else that talks to Trust. The page lists your spaces, and **New key** issues a fresh admin key for one of them and revokes the old one, so a lost key doesn't lose the space. Trust keeps your GitHub id and login in a signed cookie, and nothing else from GitHub.
 
-**Limits.** One visitor (by IP) can create 10 spaces a day and the server 1,000; set `TRUST_SPACES_PER_IP` and `TRUST_SPACES_PER_DAY` to change them (`0` is no limit). Past a limit, creation returns 429 with `Retry-After`. Calls from another Worker over a service binding, and local development, don't count against the per-visitor limit, so a service like Mergery can create a space per project.
+**Who can create spaces.** A visitor from the internet needs to be signed in to create a persistent space. Calls from the operator's own Workers over a service binding carry no `CF-Connecting-IP`, which Cloudflare sets on every request from outside, so they may create spaces for their users without a person signed in (Mergery's one-click Trust works this way). Demo spaces stay open to anyone.
+
+**Limits.** 20 persistent spaces per person a day, 10 demo spaces per visitor IP a day, and 1,000 new spaces on the server a day: `TRUST_SPACES_PER_USER`, `TRUST_SPACES_PER_IP`, `TRUST_SPACES_PER_DAY` (`0` is no limit). Past a limit, creation returns 429 with `Retry-After`.
+
+**Setting up sign-in.** Create a GitHub OAuth app (GitHub › Settings › Developer settings › OAuth Apps) with the callback URL `https://<your Trust>/auth/callback`, then:
+
+```sh
+npx wrangler secret put GITHUB_CLIENT_ID
+npx wrangler secret put GITHUB_CLIENT_SECRET
+npx wrangler secret put TRUST_SESSION_KEY   # any long random string; signs the sign-in cookie
+```
+
+For local development, run with `--var TRUST_DEV_LOGIN:1 --var TRUST_SESSION_KEY:<anything>` and sign in at `/auth/dev?login=<name>`.
 
 ## API (per space)
 
@@ -72,7 +85,9 @@ Every route below works on both, as `/api/demo/:id/...` or `/api/spaces/:id/...`
 | Method | Path | Who | Does |
 | --- | --- | --- | --- |
 | POST | `/api/demo` | anyone | Create a space (expires after an hour on the demo). Returns the admin token |
-| POST | `/api/spaces` | anyone | Create a persistent space with its own scopes. Returns the admin token |
+| POST | `/api/spaces` | signed in, or own Worker | Create a persistent space with its own scopes. Returns the admin token |
+| GET | `/api/me`, `/api/me/spaces` | signed in | Who's signed in; their spaces (no keys) |
+| POST | `/api/me/spaces/:id/admin-key` | the space's owner | A new admin token; earlier ones stop working |
 | GET / DELETE | `/api/spaces/:id` | admin | The space and its scopes; or delete it and all its memory (`?confirm=<id>`) |
 | GET / POST | `scopes` | admin | List scopes, or add one `{ id, label, kind, client? }` |
 | POST | `sessions` | admin | Start an agent session bound to one scope. Returns the agent token |
@@ -149,7 +164,7 @@ Agents connect to `/mcp/:space` (MCP over streamable HTTP, JSON responses) with 
 - An unsure judgment takes no action and returns a note to the agent; the agent's `relate` decision is applied with the same rules and closes the note.
 - No token, a made-up token, another space's token, or an agent token claiming a different session is refused; agents can't start sessions, roll back, wall, or see the graph; an agent can't read another matter's provenance.
 - Ending a session revokes its token over HTTP and MCP; tokens never appear in any response after issue.
-- Anyone can create a persistent space, up to a per-visitor limit; it gets their own scope ids and entry prefixes, work without a precedent scope, and are deleted only by their admin with confirmation.
+- A visitor must sign in to create a persistent space and owns it: only they can get it a new admin key, which revokes the old one; forged sign-in cookies are refused. Demo creation is limited per visitor. A persistent space gets their own scope ids and entry prefixes, work without a precedent scope, and are deleted only by their admin with confirmation.
 
 ## Demo limits
 

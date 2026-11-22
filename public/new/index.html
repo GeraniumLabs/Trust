@@ -26,15 +26,31 @@ button.ghost{background:transparent;color:var(--thread);border:1px solid var(--r
 .val{display:flex;gap:8px;align-items:center}
 .val code{flex:1;font:14px var(--mono);overflow-wrap:anywhere;background:var(--paper);border:1px solid var(--rule);border-radius:8px;padding:10px 12px}
 .warn{font-size:14px;color:var(--ink)}
+.who{display:flex;gap:10px;align-items:center;justify-content:space-between;margin:0 0 16px;font-size:14px;color:var(--muted)}
+.signin{display:inline-flex;align-items:center;justify-content:center;text-decoration:none;font:600 15px var(--sans);min-height:44px;padding:0 18px;border-radius:8px;background:var(--thread);color:var(--paper)}
+h2{font-size:18px;margin:32px 0 10px}
+.list{display:grid;gap:10px}
+.space{background:var(--card);border:1px solid var(--rule);border-radius:10px;padding:14px 16px;display:grid;gap:6px}
+.space .top{display:flex;justify-content:space-between;gap:10px;align-items:center}
+.space code{font:13px var(--mono);overflow-wrap:anywhere;color:var(--muted)}
+.empty{color:var(--muted);font-size:14px}
 [hidden]{display:none!important}
 </style>
 </head>
 <body>
 <main>
   <h1>New Trust space</h1>
-  <p>Your own persistent space for agent memory, with one project scope. You get its URL and an admin key: paste both into a Mergery project's <b>Settings › Trust</b>, or anything else that talks to Trust. No account needed.</p>
+  <p>Your own persistent space for agent memory, with one project scope. You get its URL and an admin key: paste both into a Mergery project's <b>Settings › Trust</b>, or anything else that talks to Trust.</p>
 
-  <form id="f">
+  <div id="out-signed" hidden>
+    <p>Sign in with GitHub to make a space. Your spaces belong to your account, so you can see them here and get a new key if you lose one.</p>
+    <p><a class="signin" id="signin" href="/auth/github?return=/new/">Sign in with GitHub</a></p>
+    <p class="err" id="signin-err" hidden></p>
+  </div>
+
+  <div class="who" id="who" hidden><span>Signed in as <b id="login"></b></span><button class="ghost" id="signout">Sign out</button></div>
+
+  <form id="f" hidden>
     <label>Name <span class="hint">Shown in the space's info, e.g. the Mergery project it's for.</span>
       <input id="name" maxlength="120" placeholder="todo-service" autocomplete="off" required></label>
     <p class="err" id="err" hidden></p>
@@ -44,13 +60,52 @@ button.ghost{background:transparent;color:var(--thread);border:1px solid var(--r
   <div class="out" id="out" hidden>
     <div class="field"><b>Space URL</b><div class="val"><code id="url"></code><button class="ghost" data-copy="url">Copy</button></div></div>
     <div class="field"><b>Admin key</b><div class="val"><code id="key"></code><button class="ghost" data-copy="key">Copy</button></div></div>
-    <p class="warn"><b>Save the key now.</b> Trust keeps only its hash, so this page can't show it again. Anyone with it can read and change this space.</p>
+    <p class="warn"><b>Save the key now.</b> Trust keeps only its hash, so it can't show it again; if you lose it, get a new one from <b>Your spaces</b>. Anyone with it can read and change this space.</p>
     <div><button class="ghost" id="again">Make another</button></div>
   </div>
+
+  <section id="mine" hidden>
+    <h2>Your spaces</h2>
+    <div class="list" id="list"></div>
+  </section>
 </main>
 <script>
 {
   const $ = (id) => document.getElementById(id);
+  const esc = (t) => String(t ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+  const show = (url, key) => {
+    $("url").textContent = url;
+    $("key").textContent = key;
+    $("f").hidden = true;
+    $("out").hidden = false;
+    $("out").scrollIntoView({ block: "nearest" });
+  };
+
+  async function loadSpaces() {
+    const r = await fetch("/api/me/spaces");
+    if (!r.ok) return;
+    const spaces = await r.json();
+    $("mine").hidden = false;
+    $("list").innerHTML = spaces.length
+      ? spaces.map((x) => `<div class="space"><div class="top"><b>${esc(x.name || x.space)}</b><button class="ghost" data-key="${esc(x.space)}">New key</button></div><code>${esc(x.url)}</code><span class="hint">Made ${new Date(x.created_at).toLocaleDateString()}</span></div>`).join("")
+      : `<p class="empty">None yet.</p>`;
+  }
+
+  async function start() {
+    const r = await fetch("/api/me");
+    if (r.status === 401) {
+      const d = await r.json().catch(() => ({}));
+      $("out-signed").hidden = false;
+      if (!d.signIn) { $("signin").hidden = true; $("signin-err").textContent = "Signing in isn't set up on this Trust server yet."; $("signin-err").hidden = false; }
+      return;
+    }
+    const me = await r.json();
+    $("login").textContent = me.login;
+    $("who").hidden = false;
+    $("f").hidden = false;
+    loadSpaces();
+  }
+
   $("f").addEventListener("submit", async (e) => {
     e.preventDefault();
     $("err").hidden = true;
@@ -64,10 +119,8 @@ button.ghost{background:transparent;color:var(--thread);border:1px solid var(--r
       });
       const d = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(d.error || `Trust answered HTTP ${r.status}`);
-      $("url").textContent = `${location.origin}/api/spaces/${d.space}`;
-      $("key").textContent = d.adminToken;
-      $("f").hidden = true;
-      $("out").hidden = false;
+      show(`${location.origin}/api/spaces/${d.space}`, d.adminToken);
+      loadSpaces();
     } catch (err) {
       $("err").textContent = `Couldn't create the space: ${err.message}`;
       $("err").hidden = false;
@@ -75,6 +128,19 @@ button.ghost{background:transparent;color:var(--thread);border:1px solid var(--r
       $("go").disabled = false;
     }
   });
+
+  $("list").addEventListener("click", async (e) => {
+    const b = e.target.closest("[data-key]");
+    if (!b) return;
+    if (b.dataset.confirm !== "1") { b.dataset.confirm = "1"; b.textContent = "The old key stops working. Sure?"; return; }
+    b.disabled = true;
+    const r = await fetch(`/api/me/spaces/${b.dataset.key}/admin-key`, { method: "POST", headers: { "content-type": "application/json" }, body: "{}" });
+    const d = await r.json().catch(() => ({}));
+    b.disabled = false; b.dataset.confirm = ""; b.textContent = "New key";
+    if (!r.ok) { $("err").textContent = d.error || `Trust answered HTTP ${r.status}`; $("err").hidden = false; return; }
+    show(d.url, d.adminToken);
+  });
+
   for (const b of document.querySelectorAll("[data-copy]")) {
     b.addEventListener("click", async () => {
       try { await navigator.clipboard.writeText($(b.dataset.copy).textContent); b.textContent = "Copied"; }
@@ -83,6 +149,8 @@ button.ghost{background:transparent;color:var(--thread);border:1px solid var(--r
     });
   }
   $("again").addEventListener("click", () => { $("out").hidden = true; $("f").hidden = false; $("name").value = ""; $("key").textContent = ""; });
+  $("signout").addEventListener("click", async () => { await fetch("/auth/logout", { method: "POST" }); location.reload(); });
+  start();
 }
 </script>
 </body>

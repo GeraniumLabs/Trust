@@ -4,7 +4,7 @@
   "main": "src/index.ts",
   "compatibility_date": "2026-11-01",
   // Static site: the landing page at /, the interactive demo at /demo/. /api/* and /mcp/* go to the Worker.
-  "assets": { "directory": "./public", "binding": "ASSETS", "run_worker_first": ["/api/*", "/mcp/*"] },
+  "assets": { "directory": "./public", "binding": "ASSETS", "run_worker_first": ["/api/*", "/mcp/*", "/auth/*"] },
   "durable_objects": {
     "bindings": [
       { "name": "REGISTRY", "class_name": "Registry" },

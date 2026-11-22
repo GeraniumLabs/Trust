@@ -4,16 +4,19 @@
 import { Registry, type ScopeDef } from "./registry";
 import { Scope } from "./scope";
 import type { SourceRef, Derivation } from "./types";
+import { authRoutes, currentUser, signInReady, type AuthEnv, type User } from "./auth";
 
 export { Registry, Scope };
 
-interface Env {
+interface Env extends AuthEnv {
   SCOPE: DurableObjectNamespace;
   REGISTRY: DurableObjectNamespace;
   ASSETS: Fetcher;
-  // Anyone can create a space; these limit how many. A day is 24 hours. "0" means no limit.
-  TRUST_SPACES_PER_IP?: string; // per visitor IP a day, default 10 (loopback and service bindings aren't counted)
-  TRUST_SPACES_PER_DAY?: string; // for the whole server a day, default 1000
+  // Persistent spaces are made by people signed in with GitHub (or by the operator's own Workers over a
+  // service binding); demo spaces by anyone. These limit how many. A day is 24 hours; "0" is no limit.
+  TRUST_SPACES_PER_USER?: string; // persistent spaces per person a day, default 20
+  TRUST_SPACES_PER_IP?: string; // demo spaces per visitor IP a day, default 10
+  TRUST_SPACES_PER_DAY?: string; // all new spaces on the server a day, default 1000
 }
 
 const DEMO_SCOPES: ScopeDef[] = [
@@ -80,20 +83,32 @@ function influenced(recalledBy: any[], changes: any[]) {
 const DAY = 24 * 3600 * 1000;
 const limitOf = (v: string | undefined, d: number) => (v === undefined || v === "" || isNaN(Number(v)) ? d : Math.max(0, Number(v)));
 
-/** A 429 when this visitor, or the whole server, has created its share of spaces today; else null. */
-async function creationLimit(req: Request, env: Env): Promise<Response | null> {
-  const counter = (name: string) => env.REGISTRY.get(env.REGISTRY.idFromName(`__limit:${name}`)) as unknown as Registry;
-  const tooMany = (what: string, retryAfter: number) =>
-    new Response(JSON.stringify({ error: `${what} Try again in ${Math.ceil(retryAfter / 3600)} hour(s).` }), { status: 429, headers: { "content-type": "application/json", "retry-after": String(retryAfter) } });
-  // Cloudflare sets CF-Connecting-IP on every request from the internet. Calls over a service
-  // binding (another Worker on the same account) and local development have none or a loopback one.
+/**
+ * Calls from the operator's own Workers over a service binding carry no CF-Connecting-IP (Cloudflare
+ * sets it on every request from the internet, and it can't be removed from outside); local
+ * development has none or a loopback one. These may create spaces without a person signed in.
+ */
+function internal(req: Request) {
   const ip = req.headers.get("cf-connecting-ip");
-  if (ip && !/^(127\.|::1$|::ffff:127\.)/.test(ip)) {
+  return !ip || /^(127\.|::1$|::ffff:127\.)/.test(ip);
+}
+
+const counter = (env: Env, name: string) => env.REGISTRY.get(env.REGISTRY.idFromName(`__limit:${name}`)) as unknown as Registry;
+const tooMany = (what: string, retryAfter: number) =>
+  new Response(JSON.stringify({ error: `${what} Try again in ${Math.ceil(retryAfter / 3600)} hour(s).` }), { status: 429, headers: { "content-type": "application/json", "retry-after": String(retryAfter) } });
+
+/** A 429 when this caller, or the whole server, has created its share of spaces today; else null. */
+async function creationLimit(req: Request, env: Env, user: User | null): Promise<Response | null> {
+  if (user) {
+    const mine = await counter(env, `user:${user.id}`).hit(limitOf(env.TRUST_SPACES_PER_USER, 20), DAY);
+    if (!mine.ok) return tooMany("You've created as many spaces as one person can today.", mine.retryAfter);
+  } else if (!internal(req)) {
+    const ip = req.headers.get("cf-connecting-ip")!;
     const tag = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`trust-ip:${ip}`)))).slice(0, 12).map((b) => b.toString(16).padStart(2, "0")).join("");
-    const mine = await counter(`ip:${tag}`).hit(limitOf(env.TRUST_SPACES_PER_IP, 10), DAY);
+    const mine = await counter(env, `ip:${tag}`).hit(limitOf(env.TRUST_SPACES_PER_IP, 10), DAY);
     if (!mine.ok) return tooMany("You've created as many spaces as one visitor can today.", mine.retryAfter);
   }
-  const all = await counter("all").hit(limitOf(env.TRUST_SPACES_PER_DAY, 1000), DAY);
+  const all = await counter(env, "all").hit(limitOf(env.TRUST_SPACES_PER_DAY, 1000), DAY);
   if (!all.ok) return tooMany("This server has created as many spaces as it allows today.", all.retryAfter);
   return null;
 }
@@ -105,6 +120,8 @@ const bearer = (req: Request) => req.headers.get("authorization")?.match(/^Beare
 const handler = {
   async fetch(req: Request, env: Env): Promise<Response> {
     const url = new URL(req.url);
+    const signin = await authRoutes(req, env, url);
+    if (signin) return signin;
     if (url.pathname.startsWith("/mcp/")) return mcp(req, env, url);
     if (!url.pathname.startsWith("/api/")) return env.ASSETS.fetch(req);
 
@@ -112,9 +129,30 @@ const handler = {
     const body: any = req.method === "POST" ? await req.json().catch(() => ({})) : {};
 
     try {
-      // Creating a space is open to anyone, within the limits above.
+      const user = await currentUser(req, env);
+      // GET /api/me -> who's signed in; GET /api/me/spaces -> their spaces;
+      // POST /api/me/spaces/:id/admin-key -> a new admin key for one of them (the old one stops working).
+      if (parts[1] === "me") {
+        if (!user) return json({ error: "Sign in with GitHub to see your spaces.", signIn: signInReady(env) ? "/auth/github" : null }, 401);
+        if (!parts[2] && req.method === "GET") return json(user);
+        const mine = (env.REGISTRY.get(env.REGISTRY.idFromName(`__user:${user.id}`)) as unknown as Registry);
+        if (parts[2] === "spaces" && !parts[3] && req.method === "GET") {
+          return json((await mine.owned()).map((o) => ({ ...o, url: `${url.origin}/api/spaces/${o.space}` })));
+        }
+        if (parts[2] === "spaces" && parts[3] && parts[4] === "admin-key" && req.method === "POST") {
+          const reg = env.REGISTRY.get(env.REGISTRY.idFromName(parts[3])) as unknown as Registry;
+          const owner = await reg.owner().catch(() => null);
+          if (owner?.id !== user.id) return fail("That isn't one of your spaces.", 404);
+          return json({ space: parts[3], url: `${url.origin}/api/spaces/${parts[3]}`, adminToken: await reg.newAdminKey(`owner:${user.login}`) });
+        }
+        return fail("Not found", 404);
+      }
+      // Persistent spaces need a signed-in person (or the operator's own Worker); demos are open.
+      if (parts[1] === "spaces" && parts.length === 2 && req.method === "POST" && !user && !internal(req)) {
+        return json({ error: "Sign in with GitHub to create a space.", signIn: signInReady(env) ? "/auth/github?return=/new/" : null }, 401);
+      }
       if ((parts[1] === "demo" || parts[1] === "spaces") && parts.length === 2 && req.method === "POST") {
-        const limited = await creationLimit(req, env);
+        const limited = await creationLimit(req, env, parts[1] === "spaces" ? user : null);
         if (limited) return limited;
       }
       // POST /api/demo -> a throwaway demo space (an hour, capped).
@@ -133,8 +171,10 @@ const handler = {
         if (defs.filter((d: ScopeDef) => d.kind === "precedent").length > 1) return fail("a space has at most one precedent scope", 400);
         const id = crypto.randomUUID().replace(/-/g, "").slice(0, 12);
         const reg = env.REGISTRY.get(env.REGISTRY.idFromName(id)) as unknown as Registry;
-        const { adminToken } = await reg.setup(defs, { persistent: true, name: body.name ? String(body.name).slice(0, 120) : undefined });
+        const name = body.name ? String(body.name).slice(0, 120) : undefined;
+        const { adminToken } = await reg.setup(defs, { persistent: true, name, owner: user ?? undefined });
         for (const d of defs) await (env.SCOPE.get(env.SCOPE.idFromName(`${id}:${d.id}`)) as unknown as Scope).setPersistent();
+        if (user) await (env.REGISTRY.get(env.REGISTRY.idFromName(`__user:${user.id}`)) as unknown as Registry).own(id, name ?? "");
         return json({ space: id, persistent: true, scopes: defs, adminToken });
       }
       // Demo and persistent spaces share every other route: /api/demo/:id/... and /api/spaces/:id/...
@@ -178,7 +218,9 @@ const handler = {
         if (req.method === "GET") return json({ space: demo, ...(await reg.info()) });
         if (req.method === "DELETE") {
           if (body.confirm !== demo && url.searchParams.get("confirm") !== demo) return fail(`Deleting a space can't be undone. Repeat its id as confirm=${demo}.`, 400);
+          const owner = await reg.owner();
           const ids = await reg.destroy();
+          if (owner) await (env.REGISTRY.get(env.REGISTRY.idFromName(`__user:${owner.id}`)) as unknown as Registry).disown(demo);
           for (const sid of ids) await scopeStub(sid).destroy();
           return json({ deleted: demo, scopes: ids });
         }

@@ -64,7 +64,7 @@ export class Registry extends DurableObject<RegistryEnv> {
 
   // A demo space deletes itself after an hour and has an operation cap. A persistent space keeps
   // its memory until an admin deletes it.
-  async setup(scopes: ScopeDef[], opts: { persistent?: boolean; name?: string } = {}) {
+  async setup(scopes: ScopeDef[], opts: { persistent?: boolean; name?: string; owner?: { id: string; login: string } } = {}) {
     this.init();
     const sql = this.ctx.storage.sql;
     if ((await this.exists())) throw new Error("this space already exists");
@@ -72,12 +72,52 @@ export class Registry extends DurableObject<RegistryEnv> {
     sql.exec(`INSERT OR REPLACE INTO meta VALUES ('created_at', ?)`, String(Date.now()));
     sql.exec(`INSERT OR REPLACE INTO meta VALUES ('persistent', ?)`, opts.persistent ? "1" : "0");
     if (opts.name) sql.exec(`INSERT OR REPLACE INTO meta VALUES ('name', ?)`, opts.name);
+    if (opts.owner) {
+      sql.exec(`INSERT OR REPLACE INTO meta VALUES ('owner_id', ?)`, opts.owner.id);
+      sql.exec(`INSERT OR REPLACE INTO meta VALUES ('owner_login', ?)`, opts.owner.login);
+    }
     if (!opts.persistent) await this.ctx.storage.setAlarm(Date.now() + DEMO_TTL_MS);
     // The admin token belongs to whoever created this space: a person, or the service acting for them.
     const adminToken = newToken("adm");
     sql.exec(`INSERT INTO tokens VALUES (?, 'admin', NULL, ?, NULL, NULL)`, await hashToken(adminToken), Date.now());
     this.log("admin", "setup", "", "ok", "space created; admin token issued");
     return { scopes: await this.scopes(), adminToken };
+  }
+
+  /** The signed-in person who created this space, if one did. */
+  async owner(): Promise<{ id: string; login: string } | null> {
+    this.init();
+    const meta = (k: string) => (this.ctx.storage.sql.exec(`SELECT v FROM meta WHERE k = ?`, k).toArray()[0] as any)?.v ?? null;
+    const id = meta("owner_id");
+    return id ? { id, login: meta("owner_login") } : null;
+  }
+
+  /** A new admin token for the space's owner; every earlier admin token stops working. */
+  async newAdminKey(by: string): Promise<string> {
+    this.init();
+    const sql = this.ctx.storage.sql;
+    sql.exec(`UPDATE tokens SET revoked_at = ? WHERE kind = 'admin' AND revoked_at IS NULL`, Date.now());
+    const token = newToken("adm");
+    sql.exec(`INSERT INTO tokens VALUES (?, 'admin', NULL, ?, NULL, NULL)`, await hashToken(token), Date.now());
+    this.log(by, "admin_key", "", "ok", "new admin token issued; earlier ones revoked");
+    return token;
+  }
+
+  // A person's own list of spaces, on a registry instance named "__user:<github id>".
+  async own(space: string, name: string) {
+    const sql = this.ctx.storage.sql;
+    sql.exec(`CREATE TABLE IF NOT EXISTS owned (space TEXT PRIMARY KEY, name TEXT, created_at INTEGER)`);
+    sql.exec(`INSERT OR REPLACE INTO owned VALUES (?, ?, ?)`, space, name, Date.now());
+  }
+  async disown(space: string) {
+    const sql = this.ctx.storage.sql;
+    sql.exec(`CREATE TABLE IF NOT EXISTS owned (space TEXT PRIMARY KEY, name TEXT, created_at INTEGER)`);
+    sql.exec(`DELETE FROM owned WHERE space = ?`, space);
+  }
+  async owned(): Promise<{ space: string; name: string; created_at: number }[]> {
+    const sql = this.ctx.storage.sql;
+    sql.exec(`CREATE TABLE IF NOT EXISTS owned (space TEXT PRIMARY KEY, name TEXT, created_at INTEGER)`);
+    return sql.exec(`SELECT * FROM owned ORDER BY created_at DESC`).toArray() as any;
   }
 
   // Who is calling. Returns null for a missing, unknown, expired or revoked token.
