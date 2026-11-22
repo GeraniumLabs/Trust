@@ -1,24 +1,21 @@
 :root {
-  --bg: #faf9f6; --panel: #ffffff; --ink: #1f1e1c; --muted: #6b6963; --faint: #9a978f;
-  --line: rgba(0,0,0,.12); --line-strong: rgba(0,0,0,.28);
-  --nw: #534ab7; --nw-bg: #eeedfe; --ct: #0f6e56; --ct-bg: #e1f5ee; --pr: #854f0b; --pr-bg: #faeeda;
-  --danger: #a32d2d; --danger-bg: #fcebeb; --ok: #3b6d11; --focus: #185fa5;
-  --stale: #ba7517; --stale-bg: #faeeda; --contest: #993556; --contest-bg: #fbeaf0;
-  --radius: 10px; --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  /* Trust's palette (from /brand.css); the three scopes keep their own hues so matters stay apart. */
+  --bg: var(--steel); --panel: var(--sheet); --line: var(--rule); --line-strong: var(--slate);
+  --nw: #3f55a8; --nw-bg: #dfe4f5; --ct: #1f7a5c; --ct-bg: #d9efe6; --pr: #7a5a12; --pr-bg: #f3e3bd;
+  --danger: var(--red-text); --danger-bg: #f7dce0; --ok: #2f6b1e; --focus: var(--k-recall);
+  --stale: var(--red-text); --stale-bg: #f7dce0; --contest: #a3500a; --contest-bg: #f8e2cc;
+  --radius: 4px;
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #1b1a18; --panel: #24231f; --ink: #ecebe6; --muted: #a8a59c; --faint: #7d7a72;
-    --line: rgba(255,255,255,.12); --line-strong: rgba(255,255,255,.3);
-    --nw: #afa9ec; --nw-bg: #2e2a5c; --ct: #5dcaa5; --ct-bg: #0e3a2f; --pr: #ef9f27; --pr-bg: #3d2a0c;
-    --danger: #f09595; --danger-bg: #4a1b1b; --ok: #97c459; --focus: #85b7eb;
-    --stale: #ef9f27; --stale-bg: #412402; --contest: #ed93b1; --contest-bg: #4b1528;
+    --nw: #a9b6ef; --nw-bg: #232c52; --ct: #6fd0aa; --ct-bg: #0f3a2c; --pr: #e9c271; --pr-bg: #3b2c0d;
+    --danger-bg: #4a1720; --ok: #97c459; --stale-bg: #4a1720; --contest: #f4a463; --contest-bg: #47270d;
   }
 }
 * { box-sizing: border-box; }
-body { margin: 0; font: 15px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif; background: var(--bg); color: var(--ink); }
+body { margin: 0; font: 15px/1.55 var(--sans); background: var(--bg); color: var(--ink); }
 header { padding: 28px 24px 12px; max-width: 1400px; margin: 0 auto; }
-header h1 { margin: 0; font-size: 26px; font-weight: 600; letter-spacing: -.01em; }
+header h1 { margin: 0; font: 900 40px/.95 var(--display); }
 header p { margin: 4px 0 0; color: var(--muted); max-width: 760px; }
 .layout { display: grid; grid-template-columns: 320px minmax(0,1fr); grid-template-rows: auto 1fr; gap: 16px; padding: 12px 24px 40px; max-width: 1400px; margin: 0 auto; align-items: start; }
 .layout > section:first-child { grid-row: span 2; }
@@ -29,14 +26,14 @@ header p { margin: 4px 0 0; color: var(--muted); max-width: 760px; }
   .layout > aside { grid-column: auto; grid-template-columns: minmax(0,1fr); }
 }
 .panel { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; }
-.panel h2 { font-size: 14px; font-weight: 600; margin: 0 0 10px; text-transform: none; color: var(--muted); }
+.panel h2 { font: 800 22px/1 var(--display); margin: 0 0 10px; color: var(--ink); }
 .moment { border-top: 1px solid var(--line); padding: 12px 0; }
 .moment:first-of-type { border-top: 0; padding-top: 0; }
 .moment h3 { margin: 0 0 2px; font-size: 15px; font-weight: 600; display: flex; gap: 8px; align-items: baseline; }
 .moment h3 .n { color: var(--faint); font-variant-numeric: tabular-nums; }
 .moment p { margin: 0 0 8px; color: var(--muted); font-size: 13.5px; }
 .moment.done h3::after { content: "done"; font-size: 11px; color: var(--ok); border: 1px solid currentColor; border-radius: 6px; padding: 0 6px; margin-left: auto; }
-button { font: inherit; font-size: 13.5px; padding: 6px 12px; border-radius: 8px; border: 1px solid var(--line-strong); background: transparent; color: var(--ink); cursor: pointer; }
+button { font: inherit; font-size: 13.5px; padding: 6px 12px; border-radius: 3px; border: 1px solid var(--line-strong); background: transparent; color: var(--ink); cursor: pointer; }
 button:hover { background: var(--bg); }
 button.primary { background: var(--ink); color: var(--panel); border-color: var(--ink); }
 button:disabled { opacity: .45; cursor: default; }

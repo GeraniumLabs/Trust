@@ -4,11 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Trust space</title>
+<link rel="preload" href="/fonts/big-shoulders-display-latin-900-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/brand.css">
 <link rel="stylesheet" href="/space/space.css">
 </head>
 <body>
 <header class="top">
-  <div class="brand"><a href="/new/">Trust</a></div>
+  <div class="brand"><a class="trust-mark" href="/new/"><svg width="26" height="26" viewBox="0 0 30 30" aria-hidden="true"><rect x="3" y="4" width="18" height="5" rx="1" fill="#3e4a52"/><rect x="3" y="11" width="18" height="5" rx="1" fill="#b9a48a"/><rect x="3" y="18" width="18" height="7" rx="1" fill="#6f7c84"/><path d="M21 13.5H24" stroke="currentColor" stroke-width="1.5"/><circle cx="26" cy="13.5" r="3" fill="#c4122f"/></svg>Trust</a></div>
   <nav class="views" aria-label="Views">
     <a href="#memory" data-view="memory" aria-current="page">Memory</a>
     <a href="#activity" data-view="activity">Activity</a>
@@ -29,7 +31,7 @@
   </form>
 
   <!-- Memory: files on the left, memories on the right, threads between -->
-  <section id="memory" class="view" hidden>
+  <section id="view-memory" class="view" hidden>
     <div class="filters">
       <input id="q" type="search" placeholder="Search memories" aria-label="Search memories">
       <div class="chips" id="statusChips" role="group" aria-label="Status"></div>
@@ -45,7 +47,7 @@
   </section>
 
   <!-- Activity: an overview strip, then a log with one lane per session -->
-  <section id="activity" class="view" hidden>
+  <section id="view-activity" class="view" hidden>
     <figure class="overview">
       <figcaption id="ovCap">Events over time</figcaption>
       <div class="ov" id="ov"><svg id="ovSvg" role="img" aria-label="Events over time"></svg><div class="tip" id="ovTip" hidden></div></div>

@@ -84,8 +84,8 @@
     for (const a of document.querySelectorAll(".views a")) {
       if (a.dataset.view === view) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current");
     }
-    $("memory").hidden = view !== "memory";
-    $("activity").hidden = view !== "activity";
+    $("view-memory").hidden = view !== "memory";
+    $("view-activity").hidden = view !== "activity";
     if (!data) return;
     if (view === "memory") renderMemory(); else renderActivity();
   }
@@ -133,17 +133,30 @@
     });
     const recalls = new Map();
     for (const r of data.receipts) recalls.set(r.entry, (recalls.get(r.entry) ?? 0) + Number(r.times));
+    const why = staleReasons();
     $("mems").innerHTML = list.map((e) => {
       const n = recalls.get(e.id) ?? 0, agree = e.corroborations?.length ?? 0;
       return `<li class="mem ${e.status}${selected === e.id ? " sel" : ""}" data-id="${esc(e.id)}" tabindex="0" role="button" aria-label="${esc(e.title)}">
-        <p class="t"><span>${esc(e.title)}</span>${statusChip(e.status)}</p>
+        <p class="t"><span>${esc(e.title)}</span>${e.status === "stale" ? "" : statusChip(e.status)}</p>
         <p class="b">${esc(e.body)}</p>
         <p class="src">${e.sources.map((s) => esc(s.uri)).join(", ")}</p>
         <p class="m"><span>${esc(e.origin.agent)}, ${when(e.created_at)}</span>${agree ? `<span>${agree} more ${agree === 1 ? "agent agrees" : "agents agree"}</span>` : ""}${n ? `<span>recalled ${n} ${n === 1 ? "time" : "times"}</span>` : ""}${e.kind === "decision" ? "<span>decision</span>" : ""}</p>
+        ${e.status === "stale" ? `<span class="tape">Stale: ${esc(why.get(e.id) ?? "a source changed")}</span>` : ""}
       </li>`;
     }).join("");
     $("files").innerHTML = [...cites.keys()].map((u) => `<button type="button" class="file" data-uri="${esc(u)}" title="${esc(u)}"><span class="path">&lrm;${esc(u)}</span><span class="n">${cites.get(u)}</span></button>`).join("");
     requestAnimationFrame(() => layoutLoom(list));
+  }
+
+  // Why each stale memory went stale, in a few words: "src/db.js changed at a90c3d7".
+  function staleReasons() {
+    const out = new Map();
+    for (const x of [...data.events].sort((a, b) => a.at - b.at)) {
+      if (x.kind !== "status" || x.status !== "stale") continue;
+      const m = /^source changed: (.*) is now (\w+)/.exec(x.detail ?? "");
+      out.set(x.entry, m ? `${m[1]} changed at ${m[2].slice(0, 7)}` : x.detail || "a source changed");
+    }
+    return out;
   }
 
   // Files sit beside the first memory that cites them; threads join each memory to its files.
@@ -222,7 +235,7 @@
   $("mems").addEventListener("pointerleave", () => highlight({}));
   $("mems").addEventListener("click", (e) => { const m = e.target.closest(".mem"); if (m) openMemory(m.dataset.id); });
   $("mems").addEventListener("keydown", (e) => { const m = e.target.closest(".mem"); if (m && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); openMemory(m.dataset.id); } });
-  new ResizeObserver(() => { if (data && !$("memory").hidden) layoutLoom(visibleEntries()); }).observe($("loom"));
+  new ResizeObserver(() => { if (data && !$("view-memory").hidden) layoutLoom(visibleEntries()); }).observe($("loom"));
 
   // ---------- one memory ----------
   function openMemory(entryId) {
@@ -245,15 +258,21 @@
       <p>${statusChip(e.status) || `<span class="st" style="color:var(--k-write)">${glyph("write", "")}<span>Active</span></span>`}</p>
       <p class="body">${esc(e.body)}</p>
       <h3>Where it came from</h3>
-      <p>${esc(e.origin.agent)} wrote it in session ${esc(e.origin.session)}${e.origin.supervisor ? `, supervised by ${esc(e.origin.supervisor)}` : ""}, ${when(e.created_at)}. ${esc(DERIVATION[e.derivation] ? `It was ${DERIVATION[e.derivation]}.` : "")}</p>
-      <p>${esc(TRUST_WORDS[e.trust] ?? e.trust)}.</p>
-      ${e.sources.length ? `<ul>${e.sources.map((s) => `<li><code>${esc(s.uri)}</code>${s.hash ? ` at <code>${esc(String(s.hash).slice(0, 7))}</code>` : ""}</li>`).join("")}</ul>` : `<p>It cites no files.</p>`}
+      <div class="tag prov">
+        <p>${esc(e.origin.agent)} wrote it in session ${esc(e.origin.session)}${e.origin.supervisor ? `, supervised by ${esc(e.origin.supervisor)}` : ""}, ${when(e.created_at)}. ${esc(DERIVATION[e.derivation] ? `It was ${DERIVATION[e.derivation]}.` : "")} ${esc(TRUST_WORDS[e.trust] ?? e.trust)}.</p>
+        ${e.sources.length ? `<ul>${e.sources.map((s) => `<li><code>${esc(s.uri)}</code>${s.hash ? ` at <code>${esc(String(s.hash).slice(0, 7))}</code>` : ""}</li>`).join("")}</ul>` : `<p>It cites no sources.</p>`}
+        ${e.status === "stale" ? `<span class="tape">Stale: ${esc(staleReasons().get(e.id) ?? "a source changed")}</span>` : ""}
+      </div>
       ${e.corroborations?.length ? `<h3>Others who said the same</h3><ul>${e.corroborations.map((c) => `<li>${esc(c.agent)}, ${when(c.at)}${c.judge ? ` (merged by the ${esc(c.judge)} judge)` : ""}</li>`).join("")}</ul>` : ""}
       ${related.length ? `<h3>Related memories</h3><ul>${related.join("")}</ul>` : ""}
       <h3>Recalled</h3>
       ${recalls.length ? `<ul>${recalls.map((r) => `<li>${esc(sessionAgent(r.session))} recalled it ${r.times} ${Number(r.times) === 1 ? "time" : "times"}, first ${when(r.first_at)}</li>`).join("")}</ul>` : `<p>No agent has recalled it yet.</p>`}
-      <h3>History</h3>
-      <ul class="hist">${history.map((x) => `<li>${eventGlyph(x)}<span>${clock(x.at)}: ${eventText(x, entryId)}</span></li>`).join("")}</ul>`;
+      <h3>Chain of custody</h3>
+      <ol class="chainv">${history.map((x) => {
+        const stale = x.kind === "status" && x.status === "stale";
+        const ring = stale ? "stale" : x.kind === "write" || x.kind === "corroborated" ? "tagged" : "";
+        return `<li class="${stale ? "broken" : ""}"><span class="ring ${ring}" aria-hidden="true"></span><span><span class="when">${when(x.at)}</span>${eventText(x, entryId)}</span></li>`;
+      }).join("")}</ol>`;
     $("drawer").hidden = false;
     $("dClose").focus();
   }
@@ -376,8 +395,9 @@
       const lane = laneOf(x, lanes);
       const lines = lanes.map((l, i) => (l.started_at <= x.at && (!endAt.has(l.id) || endAt.get(l.id) >= x.at) ? `<i style="left:${laneX(i + 1)}px"></i>` : "")).join("");
       const sys = x.kind === "change" || x.kind === "source_changed";
+      const cut = x.kind === "source_changed" && !/flagged nothing/.test(x.detail ?? "");
       const mark = eventGlyph(x).replace('<svg class="g ', `<svg style="left:${laneX(lane)}px" class="g `);
-      html += `<li class="ev${sys ? " system" : ""}" data-at="${x.at}"><span class="time">${clock(x.at)}</span><span class="lanes">${lines}${mark}</span><span class="txt">${eventText(x)}</span></li>`;
+      html += `<li class="ev${sys ? " system" : ""}${cut ? " stale-cut" : ""}" data-at="${x.at}"><span class="time">${clock(x.at)}</span><span class="lanes">${lines}${mark}</span><span class="txt">${eventText(x)}</span></li>`;
     }
     $("log").innerHTML = html;
     drawOverview(events);
@@ -423,7 +443,7 @@
       row?.scrollIntoView({ block: "center", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
     };
   }
-  new ResizeObserver(() => { if (data && !$("activity").hidden) renderActivity(); }).observe($("ov"));
+  new ResizeObserver(() => { if (data && !$("view-activity").hidden) renderActivity(); }).observe($("ov"));
 
   load();
 }

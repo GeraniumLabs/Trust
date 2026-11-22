@@ -6,126 +6,117 @@
 <title>Trust: agent memory that knows where every memory came from</title>
 <meta name="description" content="Trust is open-source, provenance-first memory for AI agents on Cloudflare. Every memory records its origin and sources, every recall leaves a receipt, and anything a bad source taught can be removed.">
 <meta name="color-scheme" content="light dark">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 16 16%27%3E%3Ccircle cx=%278%27 cy=%278%27 r=%276%27 fill=%27%23175d63%27/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 16 16%27%3E%3Crect x=%271%27 y=%272%27 width=%2711%27 height=%273%27 fill=%27%233e4a52%27/%3E%3Crect x=%271%27 y=%276%27 width=%2711%27 height=%273%27 fill=%27%23b9a48a%27/%3E%3Crect x=%271%27 y=%2710%27 width=%2711%27 height=%274%27 fill=%27%236f7c84%27/%3E%3Ccircle cx=%2713.5%27 cy=%277.5%27 r=%272.2%27 fill=%27%23c4122f%27/%3E%3C/svg%3E">
+<link rel="preload" href="/fonts/big-shoulders-display-latin-900-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/brand.css">
 <style>
-:root {
-  --paper: #f2f4f3;
-  --card: #fbfcfb;
-  --ink: #17242b;
-  --muted: #4c5a61;
-  --rule: #c9d1d0;
-  --thread: #175d63;      /* provenance: the line back to a source */
-  --thread-soft: #dcebea;
-  --seal: #4b3f9e;        /* reviewed tier */
-  --cut: #a8321f;         /* quarantine */
-  --cut-soft: #f6e3df;
-  --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", "URW Palladio L", Georgia, serif;
-  --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
-}
-@media (prefers-color-scheme: dark) {
-  :root {
-    --paper: #162127;
-    --card: #1d2a31;
-    --ink: #e6ecea;
-    --muted: #a9b6b8;
-    --rule: #34454d;
-    --thread: #6cc3c2;
-    --thread-soft: #1f3d40;
-    --seal: #aea6f0;
-    --cut: #f0907d;
-    --cut-soft: #44241f;
-  }
-}
-* { box-sizing: border-box; }
-html { -webkit-text-size-adjust: 100%; }
-body { margin: 0; background: var(--paper); color: var(--ink); font: 17px/1.6 var(--sans); }
-a { color: var(--thread); text-underline-offset: .18em; }
-a:hover { text-decoration-thickness: 2px; }
-:focus-visible { outline: 3px solid var(--thread); outline-offset: 3px; border-radius: 3px; }
-.skip { position: absolute; left: -999px; top: 8px; background: var(--card); padding: 8px 12px; }
+* { box-sizing: border-box; min-width: 0; }
+html { -webkit-text-size-adjust: 100%; scroll-padding-top: 24px; }
+body { margin: 0; background: var(--steel); color: var(--ink); font: 17px/1.6 var(--sans); overflow-x: clip; }
+a { color: var(--ink); text-underline-offset: .18em; text-decoration-color: var(--clay-deep); }
+a:hover { text-decoration-thickness: 2px; text-decoration-color: var(--ink); }
+:focus-visible { outline: 3px solid var(--k-recall); outline-offset: 3px; border-radius: 3px; }
+.skip { position: absolute; left: -999px; top: 8px; background: var(--sheet); padding: 8px 12px; }
 .skip:focus { left: 8px; }
-
-.wrap { max-width: 1120px; margin: 0 auto; padding-inline: 28px; }
+.wrap { max-width: 1180px; margin: 0 auto; padding-inline: 28px; }
 .prose > * { max-width: 40rem; }
 
-/* Top bar */
-.bar { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; padding-block: 22px; }
-.mark { font: 600 22px/1 var(--serif); color: var(--ink); text-decoration: none; letter-spacing: -.01em; }
-.mark span { display: inline-block; width: .55em; height: .55em; border-radius: 50%; background: var(--thread); margin-right: .35em; vertical-align: .02em; }
-.bar nav { display: flex; gap: 20px; font-size: 15px; }
-.bar nav a { color: var(--muted); text-decoration: none; }
-.bar nav a:hover { color: var(--ink); text-decoration: underline; }
+.bar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-block: 22px; flex-wrap: wrap; }
+.bar nav { display: flex; gap: 22px; font-size: 15px; font-weight: 500; flex-wrap: wrap; }
+.bar nav a { text-decoration: none; }
+.bar nav a:hover { text-decoration: underline; }
 
-/* Hero */
-.hero { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 56px; align-items: center; padding-block: 48px 88px; }
-h1, h2, h3 { font-family: var(--serif); font-weight: 600; letter-spacing: -.012em; }
-h1 { font-size: clamp(2.3rem, 5.2vw, 3.9rem); line-height: 1.06; margin: 0 0 24px; }
-.lede { font-size: 1.2rem; color: var(--muted); margin: 0 0 32px; max-width: 34rem; }
-.ctas { display: flex; flex-wrap: wrap; gap: 12px; }
-.btn { display: inline-block; padding: 12px 20px; border-radius: 6px; font-weight: 600; font-size: 16px; text-decoration: none; border: 2px solid var(--ink); }
-.btn.primary { background: var(--ink); color: var(--paper); }
-.btn.primary:hover { background: var(--thread); border-color: var(--thread); color: #fff; }
-.btn.ghost { color: var(--ink); }
-.btn.ghost:hover { border-color: var(--thread); color: var(--thread); }
-.status { margin: 24px 0 0; font-size: 14.5px; color: var(--muted); }
-
-/* The record: the one loud element on the page */
-.record { position: relative; margin: 0; background: var(--card); border: 1px solid var(--rule); border-left: 6px solid var(--thread); border-radius: 4px 10px 10px 4px; padding: 22px 24px 20px; box-shadow: 0 1px 0 var(--rule), 0 18px 40px -28px rgba(23, 36, 43, .55); }
-.record::before { content: ""; position: absolute; top: 22px; left: -15px; width: 12px; height: 12px; border-radius: 50%; background: var(--paper); border: 2px solid var(--thread); }
-.record figcaption { font-size: 13.5px; color: var(--muted); margin: 0 0 12px; }
-.record .text { font: 1.18rem/1.45 var(--serif); margin: 0 0 18px; }
-.record dl { display: grid; grid-template-columns: 7.2em minmax(0, 1fr); gap: 6px 14px; margin: 0; font-size: 14.5px; }
-.record dt { color: var(--muted); }
-.record dd { margin: 0; min-width: 0; }
-.record code, .record .h { font-family: var(--mono); font-size: 13px; overflow-wrap: anywhere; }
-.record dd code { white-space: nowrap; }
-.record ul { list-style: none; margin: 0; padding: 0; }
-.record li { padding-left: 16px; position: relative; }
-.record li::before { content: ""; position: absolute; left: 0; top: .72em; width: 9px; border-top: 2px solid var(--thread); }
-.tier { display: inline-block; font-size: 13px; font-weight: 600; padding: 1px 9px; border-radius: 999px; background: var(--thread-soft); color: var(--thread); }
-.h { color: var(--muted); }
-
-/* Sections */
-section { padding-block: 72px; border-top: 1px solid var(--rule); }
-h2 { font-size: clamp(1.75rem, 3.4vw, 2.4rem); line-height: 1.15; margin: 0 0 18px; }
-h3 { font-size: 1.3rem; line-height: 1.25; margin: 0 0 8px; }
+h1, h2, h3 { font-family: var(--display); font-weight: 800; letter-spacing: 0; line-height: .95; text-wrap: balance; }
+h1 { font-weight: 900; font-size: clamp(3.2rem, 7.4vw, 6rem); line-height: .88; margin: 0 0 26px; }
+h2 { font-size: clamp(2.3rem, 4.6vw, 3.4rem); margin: 0 0 18px; }
+h3 { font-size: 1.85rem; line-height: 1; margin: 0 0 10px; }
 p { margin: 0 0 16px; }
 .muted { color: var(--muted); }
 
-.features { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 40px 56px; margin-top: 40px; }
+.hero { display: grid; grid-template-columns: minmax(0, .92fr) minmax(0, 1.15fr); gap: 48px; align-items: center; padding-block: 28px 72px; }
+.lede { font-size: 1.18rem; line-height: 1.55; color: var(--muted); margin: 0 0 30px; max-width: 33rem; }
+.ctas { display: flex; flex-wrap: wrap; gap: 12px; }
+.btn { display: inline-flex; align-items: center; min-height: 52px; padding: 0 24px; border-radius: 3px; font-weight: 600; font-size: 16.5px; text-decoration: none; border: 2px solid var(--ink); }
+.btn.primary { background: var(--ink); color: var(--steel); }
+.btn.primary:hover { background: var(--shale); border-color: var(--shale); }
+.btn.ghost:hover { background: var(--sheet); }
+.status { margin: 22px 0 0; font-size: 14.5px; color: var(--muted); }
+
+/* The picture: memories as layers over time, two tied to their custody tags */
+.core { margin: 0; display: grid; grid-template-columns: 52px minmax(0, 230px) minmax(0, 1fr); gap: 0 12px; align-items: start; }
+.core .dates { white-space: nowrap; display: flex; flex-direction: column; justify-content: space-between; text-align: right; font-size: 13px; color: var(--faint); padding: 10px 0; height: 282px; }
+.core .column { border-radius: 22px; overflow: hidden; box-shadow: inset 0 0 0 3px var(--ink), 0 24px 40px -26px rgba(21,25,29,.55); display: flex; flex-direction: column; }
+.core .layer { display: flex; align-items: center; padding: 0 16px; font-weight: 600; font-size: 14px; line-height: 1.25; }
+.core .l1 { background: #b9a48a; color: #15191d; height: 58px; }
+.core .l2 { background: #3e4a52; color: #eef1f0; height: 74px; }
+.core .l3 { background: #8d7b63; color: #fff; height: 86px; transform: translateX(10px); opacity: .85; }
+.core .l4 { background: #6f7c84; color: #fff; height: 64px; }
+.core .fault { position: relative; height: 0; z-index: 1; }
+.core .fault::after { content: ""; position: absolute; left: -6px; right: -6px; top: -8px; height: 16px; background: var(--steel); clip-path: polygon(0 40%, 14% 70%, 28% 30%, 42% 75%, 56% 25%, 70% 70%, 84% 35%, 100% 55%, 100% 70%, 84% 55%, 70% 92%, 56% 45%, 42% 96%, 28% 52%, 14% 92%, 0 62%); }
+.core .tags { position: relative; min-height: 356px; margin-top: -10px; }
+.core .string { position: absolute; height: 2px; background: var(--slate); }
+.core .tag { position: absolute; left: 22px; width: min(290px, 100%); }
+.core .tag h3 { font-size: 1.5rem; margin: 0 0 8px; color: var(--tag-ink); }
+.core .tag dl { margin: 0; display: grid; grid-template-columns: 4.6em minmax(0, 1fr); gap: 3px 8px; font-size: 13px; line-height: 1.35; }
+.core .tag dd { margin: 0; }
+.core figcaption { grid-column: 2 / 4; margin-top: 16px; font-size: 14px; color: var(--muted); }
+
+/* Custody chain: one memory's history, link by link */
+.custody { background: var(--sheet); }
+.chain { list-style: none; margin: 32px 0 0; padding: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.chain li { padding-right: 16px; }
+.chain .link { display: flex; align-items: center; margin-bottom: 14px; }
+.chain .ring { flex: none; width: 26px; height: 26px; border-radius: 50%; border: 3px solid var(--ink); background: var(--steel); }
+.chain .ring.tagged { background: var(--manila); }
+.chain .ring.stale { border-color: var(--red); background: var(--red); }
+.chain .bar-line { flex: 1; height: 3px; background: var(--ink); }
+.chain .bar-line.broken { background: repeating-linear-gradient(90deg, var(--red) 0 8px, transparent 8px 14px); }
+.chain .when { margin: 0 0 4px; font-size: 13px; color: var(--faint); }
+.chain p { font-size: 15px; line-height: 1.45; margin: 0; }
+.chain b.stale { color: var(--red-text); }
+
+/* Sections */
+section { padding-block: 72px; border-top: 1px solid var(--rule); }
+.features { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 44px 56px; margin-top: 40px; }
 .features article p { color: var(--muted); }
-.features article > h3 { padding-top: 14px; border-top: 2px solid var(--ink); }
+.features article > h3 { padding-top: 18px; border-top: 8px solid var(--clay); }
+.features article:nth-child(1) > h3 { border-top-color: var(--manila); }
+.features article:nth-child(2) > h3 { border-top-color: var(--k-recall); }
+.features article:nth-child(3) > h3 { border-top-color: var(--shale); }
+.features article:nth-child(4) > h3 { border-top-color: var(--k-judge); }
 
 .diagram { margin: 48px 0 0; }
 .diagram .scroll { overflow-x: auto; }
-.diagram svg { display: block; width: 100%; min-width: 700px; height: auto; max-width: 980px; }
+.diagram svg { display: block; width: 100%; min-width: 700px; height: auto; max-width: 1000px; }
 .diagram figcaption { font-size: 14.5px; color: var(--muted); margin-top: 12px; max-width: 44rem; }
-.d-box { fill: var(--card); stroke: var(--rule); stroke-width: 1.5; }
-.d-src { stroke: var(--thread); }
-.d-cut { fill: var(--cut-soft); stroke: var(--cut); stroke-dasharray: 5 4; }
-.d-line { stroke: var(--thread); stroke-width: 2; fill: none; }
-.d-cutline { stroke: var(--cut); stroke-width: 2; fill: none; stroke-dasharray: 5 4; }
+.d-box { fill: var(--sheet); stroke: var(--rule); stroke-width: 1.5; }
+.d-src { stroke: var(--manila-edge); fill: var(--manila); }
+.d-cut { fill: none; stroke: var(--red); stroke-dasharray: 5 4; }
+.d-line { stroke: var(--slate); stroke-width: 2; fill: none; }
+.d-cutline { stroke: var(--red); stroke-width: 2; fill: none; stroke-dasharray: 5 4; }
 .d-t { fill: var(--ink); font: 600 15px var(--sans); }
+.on-tag { fill: var(--tag-ink) !important; }
 .d-s { fill: var(--muted); font: 13px var(--sans); }
 .d-m { fill: var(--muted); font: 12px var(--mono); }
-.d-x { fill: var(--cut); font: 600 13px var(--sans); }
+.d-x { fill: var(--red-text); font: 600 13px var(--sans); }
 .d-col { fill: var(--muted); font: 600 13px var(--sans); }
 
 .judge { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 56px; align-items: start; }
-.relations { margin: 0; border-top: 1px solid var(--rule); }
+.relations { margin: 0; border-top: 2px solid var(--ink); }
 .relations div { display: grid; grid-template-columns: 7.5em minmax(0, 1fr); gap: 14px; padding: 12px 0; border-bottom: 1px solid var(--rule); font-size: 15.5px; }
-.relations dt { font-family: var(--mono); font-size: 14px; color: var(--thread); padding-top: 2px; }
+.relations dt { font: 800 1.2rem/1.2 var(--display); color: var(--ink); }
 .relations dd { margin: 0; color: var(--muted); }
-.unsure { margin-top: 28px; padding: 18px 20px; background: var(--card); border: 1px solid var(--rule); border-radius: 8px; }
-.unsure h3 { font-size: 1.12rem; }
-.unsure p:last-child { margin: 0; color: var(--muted); }
+.unsure { margin-top: 28px; }
+.unsure h3 { font-size: 1.5rem; color: var(--tag-ink); }
+.unsure p:last-child { margin: 0; }
 
 .tablewrap { overflow-x: auto; margin: 28px 0 20px; }
 table { border-collapse: collapse; width: 100%; min-width: 620px; font-size: 15.5px; font-variant-numeric: tabular-nums; }
 caption { text-align: left; font-size: 14.5px; color: var(--muted); padding-bottom: 10px; }
 th, td { text-align: left; padding: 11px 14px 11px 0; border-bottom: 1px solid var(--rule); vertical-align: top; }
+td { text-align: right; } td:first-of-type { text-align: left; }
 thead th { font-weight: 600; font-size: 14px; color: var(--muted); border-bottom: 2px solid var(--ink); }
+thead th:not(:first-child) { text-align: right; }
 tbody th { font-weight: 600; }
 tr.base td, tr.base th { color: var(--muted); }
 .caveats { margin: 0; padding-left: 1.2em; color: var(--muted); font-size: 15.5px; max-width: 44rem; }
@@ -135,42 +126,55 @@ tr.base td, tr.base th { color: var(--muted); }
 .two ul { padding-left: 1.2em; color: var(--muted); }
 .two li { margin-bottom: 8px; }
 .two li strong { color: var(--ink); }
-.aside { font-size: 15.5px; color: var(--muted); border-left: 3px solid var(--rule); padding-left: 16px; margin-top: 28px; max-width: 44rem; }
+.aside { font-size: 15.5px; color: var(--muted); border-left: 4px solid var(--clay); padding-left: 16px; margin-top: 28px; max-width: 44rem; }
 
 ol.steps { list-style: none; counter-reset: s; padding: 0; margin: 28px 0 0; max-width: 46rem; }
 ol.steps li { counter-increment: s; display: grid; grid-template-columns: 2.2em minmax(0, 1fr); gap: 0 12px; margin-bottom: 22px; }
-ol.steps li::before { content: counter(s); font: 600 1.3rem/1.3 var(--serif); color: var(--thread); }
+ol.steps li::before { content: counter(s); font: 900 1.8rem/1 var(--display); color: var(--clay-deep); }
 ol.steps p { margin: 0 0 8px; }
-pre { margin: 0; padding: 14px 16px; background: var(--card); border: 1px solid var(--rule); border-radius: 6px; overflow-x: auto; font: 14px/1.55 var(--mono); }
-code { font-family: var(--mono); font-size: .9em; }
-pre .c { color: var(--muted); }
+pre { margin: 0; padding: 14px 16px; background: var(--ink); color: var(--steel); border-radius: 4px; overflow-x: auto; font: 14px/1.55 var(--mono); }
+code { font-family: var(--mono); font-size: .9em; overflow-wrap: anywhere; }
+pre code { overflow-wrap: normal; }
+pre .c { color: #9aa6ad; }
+.dark-band { background: var(--ink); color: var(--steel); border-top: 0; }
+@media (prefers-color-scheme: dark) { .dark-band { background: #0f1215; } pre { background: #0f1215; } }
 
 footer { border-top: 1px solid var(--rule); padding-block: 36px 48px; font-size: 15px; color: var(--muted); }
 footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px 24px; }
-footer nav { display: flex; gap: 20px; }
+footer nav { display: flex; gap: 20px; flex-wrap: wrap; }
 
-@media (max-width: 880px) {
+@media (max-width: 900px) {
   .hero, .judge, .two { grid-template-columns: minmax(0, 1fr); gap: 40px; }
-  .hero { padding-block: 24px 64px; }
+  .hero { padding-block: 16px 56px; }
   .features { grid-template-columns: minmax(0, 1fr); gap: 32px; }
+  .chain { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .chain li { display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 0 14px; padding: 0 0 18px; position: relative; }
+  .chain li::before { content: ""; position: absolute; left: 11.5px; top: 26px; bottom: 0; width: 3px; background: var(--ink); }
+  .chain li:last-child::before { display: none; }
+  .chain li.stale-link::before { background: repeating-linear-gradient(180deg, var(--red) 0 8px, transparent 8px 14px); }
+  .chain .link { grid-row: 1 / 3; margin: 0; align-self: start; }
+  .chain .bar-line { display: none; }
   section { padding-block: 56px; }
 }
-@media (max-width: 520px) {
+@media (max-width: 560px) {
   body { font-size: 16px; }
   .wrap { padding-inline: 18px; }
   .bar nav a.opt { display: none; }
-  .record { padding: 18px 16px 16px; }
-  .record dl { grid-template-columns: minmax(0, 1fr); gap: 0; }
-  .record dd { margin-bottom: 8px; }
+  .core { grid-template-columns: 40px minmax(0, 1fr); }
+  .core .tags { grid-column: 1 / 3; min-height: 0; display: grid; gap: 14px; margin-top: 18px; }
+  .core .tag { position: relative; left: 0; top: auto !important; width: 100%; transform: none !important; }
+  .core .string { display: none; }
+  .core figcaption { grid-column: 1 / 3; }
   .relations div { grid-template-columns: minmax(0, 1fr); gap: 2px; }
 }
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
 </style>
 </head>
 <body>
 <a class="skip" href="#main">Skip to content</a>
 
 <header class="wrap bar">
-  <a class="mark" href="/"><span aria-hidden="true"></span>Trust</a>
+  <a class="trust-mark" href="/"><svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><rect x="3" y="4" width="18" height="5" rx="1" fill="#3e4a52"/><rect x="3" y="11" width="18" height="5" rx="1" fill="#b9a48a"/><rect x="3" y="18" width="18" height="7" rx="1" fill="#6f7c84"/><path d="M21 13.5H24" stroke="currentColor" stroke-width="1.5"/><circle cx="26" cy="13.5" r="3" fill="#c4122f"/></svg>Trust</a>
   <nav aria-label="Site">
     <a class="opt" href="#how">How it works</a>
     <a class="opt" href="#eval">Eval</a>
@@ -182,37 +186,54 @@ footer nav { display: flex; gap: 20px; }
 <main id="main">
   <div class="wrap hero">
     <div>
-      <h1>Agent memory that knows where every memory came from.</h1>
-      <p class="lede">Trust is memory for AI coding agents and other agents. Every memory carries its origin and its sources. Every recall leaves a receipt. When a source turns out to be wrong, everything it taught comes back out.</p>
+      <h1>Every memory keeps its chain of custody.</h1>
+      <p class="lede">Trust is memory for AI agents. It records where each memory came from (a file, a contract, a web page, a record) and everything that has happened to it since: who agreed, who relied on it, and when the source under it changed.</p>
       <div class="ctas">
-        <a class="btn primary" href="/demo/">Try the live demo</a>
-        <a class="btn ghost" href="https://github.com/GeraniumLabs/Trust">View on GitHub</a>
+        <a class="btn primary" href="/new/">Make a space</a>
+        <a class="btn ghost" href="/demo/">Try the live demo</a>
       </div>
-      <p class="status">Open source, MIT. Early: this is v1. Runs on Cloudflare Workers and Durable Objects with SQLite.</p>
+      <p class="status">Open source, MIT. Early: this is v1. Runs on Cloudflare Workers and Durable Objects with SQLite. <a href="https://github.com/GeraniumLabs/Trust">Read the code</a>.</p>
     </div>
 
-    <figure class="record" aria-labelledby="rec-cap">
-      <figcaption id="rec-cap">An example memory, as Trust stores it (illustrative)</figcaption>
-      <p class="text">Round currency with the shared money helpers in <code>src/lib/money.ts</code>, never inline.</p>
-      <dl>
-        <dt>Tier</dt>
-        <dd><span class="tier">sourced</span></dd>
-        <dt>Origin</dt>
-        <dd>agent <code>billing-agent</code>, session <code>s-4f2a</code>, step 7, supervised by <code>lead-dev</code></dd>
-        <dt>Sources</dt>
-        <dd><ul>
-          <li><code>src/lib/money.ts</code> <span class="h">sha256:9c1e…a47b</span></li>
-          <li><code>docs/billing.md</code> <span class="h">sha256:41d0…7e2c</span></li>
-        </ul></dd>
-        <dt>Derived from</dt>
-        <dd>memory <code>n-1</code></dd>
-        <dt>Recalled by</dt>
-        <dd>2 sessions, 1 change merged after</dd>
-        <dt>Signature</dt>
-        <dd><span class="h">hmac over origin and source versions</span></dd>
-      </dl>
+    <figure class="core" aria-labelledby="core-cap">
+      <div class="dates" aria-hidden="true"><span>21 Nov</span><span>20 Nov</span><span>18 Nov</span></div>
+      <div class="column" role="img" aria-label="Four memories laid down as layers over time. The two lower layers rest on an engagement letter that was revised; one of them has slipped.">
+        <div class="layer l1">Escalate refunds over $500</div>
+        <div class="layer l2">All reads go through db.js</div>
+        <div class="fault"></div>
+        <div class="layer l3">Notice period is 30 days</div>
+        <div class="layer l4">Pro plan is $10 a month</div>
+      </div>
+      <div class="tags">
+        <span class="string" style="left: -12px; top: 105px; width: 34px"></span>
+        <div class="tag" style="top: 34px; transform: rotate(-2deg)">
+          <h3>All reads go through db.js</h3>
+          <dl><dt>From</dt><dd><code>src/db.js</code> at 4be81f2</dd><dt>By</dt><dd>ada; lin agrees</dd><dt>Relied on</dt><dd>3 times</dd></dl>
+        </div>
+        <span class="string" style="left: -2px; top: 185px; width: 24px"></span>
+        <div class="tag" style="top: 178px; transform: rotate(3deg); overflow: hidden">
+          <h3>Notice period is 30 days</h3>
+          <dl><dt>From</dt><dd>Engagement letter, version 3</dd><dt>By</dt><dd>intake agent</dd></dl>
+          <span class="tape">Stale: letter revised to version 4</span>
+        </div>
+      </div>
+      <figcaption id="core-cap">An example (illustrative). Memories are laid down over time, each tagged with where it came from. When the engagement letter was revised, the memory resting on it slipped and was marked stale; the ones resting on the policy, the code and the pricing page held.</figcaption>
     </figure>
   </div>
+
+  <section class="custody" aria-labelledby="custody-h">
+    <div class="wrap">
+      <h2 id="custody-h">The whole history, not just the latest note</h2>
+      <p class="muted" style="max-width: 44rem">Open any memory and read its custody, link by link. This is "Notice period is 30 days".</p>
+      <ol class="chain">
+        <li><span class="link"><span class="ring tagged"></span><span class="bar-line"></span></span><p class="when">18 Nov, 9:12</p><p><b>Collected</b> by the intake agent from the engagement letter, version 3</p></li>
+        <li><span class="link"><span class="ring"></span><span class="bar-line"></span></span><p class="when">18 Nov, 9:40</p><p><b>Agreed</b> by the review agent, reading the same letter</p></li>
+        <li><span class="link"><span class="ring"></span><span class="bar-line"></span></span><p class="when">19 Nov</p><p><b>Relied on</b> 3 times, by the drafting agent writing two notices</p></li>
+        <li class="stale-link"><span class="link"><span class="ring stale"></span><span class="bar-line broken"></span></span><p class="when">20 Nov, 14:05</p><p><b class="stale">Stale.</b> The letter was revised to version 4; the two notices that relied on it are flagged</p></li>
+        <li><span class="link"><span class="ring tagged"></span></span><p class="when">20 Nov, 14:30</p><p><b>Replaced</b> by "Notice period is 45 days", collected from version 4</p></li>
+      </ol>
+    </div>
+  </section>
 
   <section aria-labelledby="problem">
     <div class="wrap prose">
@@ -259,11 +280,11 @@ footer nav { display: flex; gap: 20px; }
           <text class="d-col" x="800" y="22">Changes</text>
 
           <rect class="d-box d-src" x="20" y="40" width="190" height="56" rx="6"/>
-          <text class="d-t" x="34" y="64">money.ts</text>
-          <text class="d-m" x="34" y="84">sha256:9c1e…</text>
+          <text class="d-t on-tag" x="34" y="64">money.ts</text>
+          <text class="d-m on-tag" x="34" y="84">sha256:9c1e…</text>
           <rect class="d-box d-src" x="20" y="112" width="190" height="56" rx="6"/>
-          <text class="d-t" x="34" y="136">billing.md</text>
-          <text class="d-m" x="34" y="156">sha256:41d0…</text>
+          <text class="d-t on-tag" x="34" y="136">billing.md</text>
+          <text class="d-m on-tag" x="34" y="156">sha256:41d0…</text>
           <rect class="d-box d-cut" x="20" y="214" width="190" height="56" rx="6"/>
           <text class="d-t" x="34" y="238">ci-note.txt</text>
           <text class="d-x" x="34" y="258">removed</text>
@@ -304,7 +325,7 @@ footer nav { display: flex; gap: 20px; }
         <h2 id="judge-h">The memory judge</h2>
         <p>Agents repeat themselves, refine each other, and sometimes disagree. On every write, Trust finds the closest existing memories and asks a judge model how the new one relates to each.</p>
         <p class="muted">The judge speaks the System One API, so you can swap models. Run Clef-Flash on Workers AI and memory never leaves Cloudflare. Or point it at a local Kev model, or TypeSafe's Jev.</p>
-        <div class="unsure">
+        <div class="unsure tag">
           <h3>Unsure goes to the agent</h3>
           <p>When the judge isn't confident, Trust takes no action. It tells the agent what it saw, with a second model's opinion if you've configured one. The agent checks the evidence and decides.</p>
         </div>
