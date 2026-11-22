@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trust space</title>
+<link rel="stylesheet" href="/space/space.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand"><a href="/new/">Trust</a></div>
+  <nav class="views" aria-label="Views">
+    <a href="#memory" data-view="memory" aria-current="page">Memory</a>
+    <a href="#activity" data-view="activity">Activity</a>
+  </nav>
+  <div class="who" id="who"></div>
+</header>
+
+<main>
+  <section class="intro">
+    <h1 id="name">Loading…</h1>
+    <p id="summary" class="summary"></p>
+  </section>
+
+  <form id="keyform" class="keyform" hidden>
+    <p>This space isn't one of yours, or you're not signed in. Paste its admin key to look inside. The key stays in this tab and is sent only to this Trust server.</p>
+    <div class="row"><input id="key" type="password" autocomplete="off" placeholder="trust_adm_…" aria-label="Admin key"><button>Open space</button></div>
+    <p class="err" id="keyerr" hidden></p>
+  </form>
+
+  <!-- Memory: files on the left, memories on the right, threads between -->
+  <section id="memory" class="view" hidden>
+    <div class="filters">
+      <input id="q" type="search" placeholder="Search memories" aria-label="Search memories">
+      <div class="chips" id="statusChips" role="group" aria-label="Status"></div>
+      <select id="agent" aria-label="Agent"></select>
+    </div>
+    <div class="loom" id="loom">
+      <div class="files" id="files" aria-label="Source files"></div>
+      <svg class="threads" id="threads" aria-hidden="true"></svg>
+      <ol class="mems" id="mems" aria-label="Memories"></ol>
+      <svg class="arcs" id="arcs" aria-hidden="true"></svg>
+    </div>
+    <p class="empty" id="memEmpty" hidden>No memories match. Clear the search or turn a status back on.</p>
+  </section>
+
+  <!-- Activity: an overview strip, then a log with one lane per session -->
+  <section id="activity" class="view" hidden>
+    <figure class="overview">
+      <figcaption id="ovCap">Events over time</figcaption>
+      <div class="ov" id="ov"><svg id="ovSvg" role="img" aria-label="Events over time"></svg><div class="tip" id="ovTip" hidden></div></div>
+    </figure>
+    <div class="filters">
+      <div class="chips" id="kindChips" role="group" aria-label="Kinds of event"></div>
+      <select id="lagent" aria-label="Agent"></select>
+    </div>
+    <ol class="log" id="log"></ol>
+    <p class="empty" id="logEmpty" hidden>Nothing here yet. Activity shows up as agents write and recall memories.</p>
+  </section>
+</main>
+
+<aside class="drawer" id="drawer" aria-labelledby="dTitle" hidden>
+  <button class="close" id="dClose" aria-label="Close">Close</button>
+  <div id="dBody"></div>
+</aside>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="g-write" viewBox="0 0 12 12"><circle cx="6" cy="6" r="4.5" fill="currentColor"/></symbol>
+    <symbol id="g-recall" viewBox="0 0 12 12"><circle cx="6" cy="6" r="4" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+    <symbol id="g-judge" viewBox="0 0 12 12"><path d="M6 1 11 6 6 11 1 6z" fill="currentColor"/></symbol>
+    <symbol id="g-unsure" viewBox="0 0 12 12"><path d="M6 1.8 10.2 6 6 10.2 1.8 6z" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
+    <symbol id="g-stale" viewBox="0 0 12 12"><path d="M6 1.5 11 10.5H1z" fill="currentColor"/></symbol>
+    <symbol id="g-contested" viewBox="0 0 12 12"><path d="M2 11V1.5h7l-1.6 2.6L9 6.6H3.6V11z" fill="currentColor"/></symbol>
+    <symbol id="g-cross" viewBox="0 0 12 12"><path d="M2.2 2.2 9.8 9.8M9.8 2.2 2.2 9.8" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></symbol>
+    <symbol id="g-superseded" viewBox="0 0 12 12"><circle cx="6" cy="6" r="4" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M2 10 10 2" stroke="currentColor" stroke-width="1.6"/></symbol>
+    <symbol id="g-merge" viewBox="0 0 12 12"><rect x="1" y="4.5" width="10" height="3" rx="1" fill="currentColor"/></symbol>
+    <symbol id="g-session" viewBox="0 0 12 12"><rect x="3" y="3" width="6" height="6" rx="1.5" fill="currentColor"/></symbol>
+  </defs>
+</svg>
+<script src="/space/space.js"></script>
+</body>
+</html>

@@ -645,6 +645,31 @@ export class Scope extends DurableObject<ScopeEnv> {
     return this.ctx.storage.sql.exec(`SELECT * FROM entry_versions WHERE id = ? ORDER BY version`, id).toArray();
   }
 
+  /** What happened to this scope's memories, as events, newest first. */
+  async activity(limit: number) {
+    this.init();
+    const sql = this.ctx.storage.sql;
+    const rows = (q: string, ...a: any[]) => sql.exec(q, ...a).toArray() as any[];
+    const title = new Map(rows(`SELECT id, title, origin_agent, origin_session FROM entries`).map((r) => [r.id, r]));
+    const t = (id: string) => title.get(id)?.title ?? id;
+    const out: any[] = [];
+    for (const v of rows(`SELECT * FROM entry_versions ORDER BY at DESC LIMIT ?`, limit)) {
+      const e = title.get(v.id);
+      if (v.version === 1) out.push({ at: v.at, kind: "write", entry: v.id, title: t(v.id), actor: e?.origin_agent ?? v.actor, session: e?.origin_session, detail: v.note });
+      else out.push({ at: v.at, kind: "status", entry: v.id, title: t(v.id), status: v.status, actor: v.actor, detail: v.note });
+    }
+    for (const r of rows(`SELECT * FROM receipts ORDER BY n DESC LIMIT ?`, limit)) out.push({ at: r.at, kind: "recall", entry: r.entry, title: t(r.entry), session: r.session, rank: r.rank });
+    for (const r of rows(`SELECT * FROM relations WHERE action IS NOT NULL ORDER BY n DESC LIMIT ?`, limit)) {
+      out.push({ at: r.at, kind: "judged", entry: r.a, other: r.b, title: t(r.a), otherTitle: t(r.b), relation: r.relation, confidence: r.confidence, judge: r.judge, action: r.action });
+    }
+    for (const c of rows(`SELECT * FROM corroborations ORDER BY n DESC LIMIT ?`, limit)) out.push({ at: c.at, kind: "corroborated", entry: c.entry, title: t(c.entry), actor: c.agent, session: c.session, judge: c.judge, confidence: c.confidence });
+    for (const u of rows(`SELECT * FROM unsure ORDER BY at DESC LIMIT ?`, limit)) {
+      out.push({ at: u.at, kind: "unsure", entry: u.entry, other: u.other, title: t(u.entry), otherTitle: t(u.other), relation: u.first_rel, confidence: u.first_conf, judge: u.first_judge, second: u.second_rel ? { relation: u.second_rel, confidence: u.second_conf, judge: u.second_judge } : null, status: u.status, decision: u.decision });
+    }
+    for (const c of rows(`SELECT * FROM conflicts ORDER BY at DESC LIMIT ?`, limit)) out.push({ at: c.at, kind: "conflict", entry: c.a, other: c.b, title: t(c.a), otherTitle: t(c.b), detail: c.reason, status: c.status, resolution: c.resolution });
+    return out.sort((a, b) => b.at - a.at).slice(0, limit);
+  }
+
   async graph() {
     this.init();
     const sql = this.ctx.storage.sql;

@@ -68,6 +68,8 @@ Every route below works on both, as `/api/demo/:id/...` or `/api/spaces/:id/...`
 
 **Limits.** 20 persistent spaces per person a day, 10 demo spaces per visitor IP a day, and 1,000 new spaces on the server a day: `TRUST_SPACES_PER_USER`, `TRUST_SPACES_PER_IP`, `TRUST_SPACES_PER_DAY` (`0` is no limit). Past a limit, creation returns 429 with `Retry-After`.
 
+**Looking inside.** `/space/?id=<id>` shows a space to its signed-in owner (or anyone who pastes its admin key into the page). **Memory** threads each source file to the memories that cite it, so you can see what depends on a file and which threads went stale or contested when it changed; click a memory for where it came from, who agreed, who recalled it, and its history. **Activity** is the space's log with a lane per agent session, merges drawn across every lane. A signed-in owner can read, not change: changes still take the admin key. `node scripts/seed-space.mjs` fills a local space with a sample session to try it.
+
 **Setting up sign-in.** Create a GitHub OAuth app (GitHub › Settings › Developer settings › OAuth Apps) with the callback URL `https://<your Trust>/auth/callback`, then:
 
 ```sh
@@ -88,6 +90,7 @@ For local development, run with `--var TRUST_DEV_LOGIN:1 --var TRUST_SESSION_KEY
 | POST | `/api/spaces` | signed in, or own Worker | Create a persistent space with its own scopes. Returns the admin token |
 | GET | `/api/me`, `/api/me/spaces` | signed in | Who's signed in; their spaces (no keys) |
 | POST | `/api/me/spaces/:id/admin-key` | the space's owner | A new admin token; earlier ones stop working |
+| GET | `activity` | admin, or the signed-in owner | One newest-first stream: writes, recalls, judge decisions, status changes, conflicts, sessions, merges, refusals |
 | GET / DELETE | `/api/spaces/:id` | admin | The space and its scopes; or delete it and all its memory (`?confirm=<id>`) |
 | GET / POST | `scopes` | admin | List scopes, or add one `{ id, label, kind, client? }` |
 | POST | `sessions` | admin | Start an agent session bound to one scope. Returns the agent token |

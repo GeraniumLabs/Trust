@@ -289,6 +289,21 @@ export class Registry extends DurableObject<RegistryEnv> {
     };
   }
 
+  /** Sessions, merges and the audit trail as activity events, newest first. */
+  async activity(limit: number) {
+    this.init();
+    const sql = this.ctx.storage.sql;
+    const out: any[] = [];
+    for (const r of sql.exec(`SELECT * FROM audit ORDER BY n DESC LIMIT ?`, limit).toArray() as any[]) {
+      if (r.action === "authenticate") continue; // unknown-token noise; refusals that matter are logged by authorize
+      out.push({ at: r.at, kind: r.outcome === "denied" || r.outcome === "rejected" ? "refused" : r.action === "start_session" ? "session" : r.action === "end_session" ? "session_end" : r.action === "source_changed" ? "source_changed" : "admin", actor: r.actor, action: r.action, scope: r.scope, outcome: r.outcome, detail: r.detail });
+    }
+    for (const c of sql.exec(`SELECT * FROM changes ORDER BY at DESC LIMIT ?`, limit).toArray() as any[]) {
+      out.push({ at: c.at, kind: "change", session: c.session, ref: c.ref, detail: c.title });
+    }
+    return out;
+  }
+
   async logEvent(actor: string, action: string, scope: string, outcome: string, detail: string) {
     this.init();
     this.log(actor, action, scope, outcome, detail);

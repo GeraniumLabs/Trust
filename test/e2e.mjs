@@ -465,6 +465,21 @@ if (process.env.TRUST_DEV_LOGIN === "1") {
     assert.equal((await (await as(ada, "GET", "/me/spaces")).json()).some((x) => x.space === made.space), false);
   });
 
+  await test("the signed-in owner can read their space in the browser, and nobody else can", async () => {
+    const ada = await signIn("ada"), bo = await signIn("bo");
+    const made = await (await as(ada, "POST", "/spaces", def)).json();
+    const sess = (await api("POST", `/spaces/${made.space}/sessions`, { scope: "project", agent: "w1", supervisor: "t" }, made.adminToken)).data;
+    await api("POST", `/spaces/${made.space}/remember`, { title: "Logs kept 30 days", body: "Application logs are kept for 30 days.", sources: [{ uri: "ops/logs.md", hash: "abc" }] }, sess.token);
+    await api("POST", `/spaces/${made.space}/recall`, { query: "how long are logs kept" }, sess.token);
+    const act = await (await as(ada, "GET", `/spaces/${made.space}/activity`)).json();
+    const kinds = new Set(act.events.map((e) => e.kind));
+    for (const k of ["write", "recall", "session"]) assert.ok(kinds.has(k), `activity has ${k}`);
+    assert.ok(act.events.every((e, i, all) => i === 0 || all[i - 1].at >= e.at), "newest first");
+    assert.equal((await as(ada, "GET", `/spaces/${made.space}/graph`)).status, 200);
+    assert.equal((await as(bo, "GET", `/spaces/${made.space}/graph`)).status, 401, "not bo's space");
+    assert.equal((await as(ada, "POST", `/spaces/${made.space}/sessions`, { scope: "project", agent: "x", supervisor: "y" })).status, 401, "the cookie only reads; changes still need the key");
+  });
+
   await test("a forged or tampered sign-in cookie is refused", async () => {
     const ada = await signIn("ada");
     const [name, value] = ada.split("=");

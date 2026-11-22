@@ -192,7 +192,9 @@ const handler = {
       // session; the admin token comes back when the space is created. A session id in the body
       // is accepted only as a cross-check against the token.
       const caller = await reg.authenticate(bearer(req));
-      const isAdmin = caller?.kind === "admin";
+      // A space's owner, signed in, may read it in the browser (GET only) without pasting its admin key.
+      const ownerReading = !caller && req.method === "GET" && !!user && (await reg.owner().catch(() => null))?.id === user.id;
+      const isAdmin = caller?.kind === "admin" || ownerReading;
       const agent = caller?.kind === "agent" ? caller.session : null;
       const needAdmin = () => (isAdmin ? null : fail("This needs the admin token for this space.", caller ? 403 : 401));
       const needAgent = () => {
@@ -433,6 +435,18 @@ const handler = {
           const sc = scopeDef(parts[4]);
           if (!sc) return fail("Unknown scope", 404);
           return json(await scopeStub(sc.id).exportBundle(sc.label));
+        }
+
+        // GET activity -> one time-ordered stream of what happened in the space: writes, recalls,
+        // judge decisions, status changes, conflicts, sessions, merges and refusals. ?limit=, default 1500.
+        case "activity": {
+          { const denied = needAdmin(); if (denied) return denied; }
+          const limit = Math.min(5000, Math.max(1, Number(url.searchParams.get("limit")) || 1500));
+          const events: any[] = [];
+          for (const sc of spaceScopes) for (const e of await scopeStub(sc.id).activity(limit)) events.push({ ...e, scope: sc.id });
+          events.push(...(await reg.activity(limit)));
+          events.sort((a, b) => b.at - a.at);
+          return json({ events: events.slice(0, limit), sessions: (await reg.state()).sessions, scopes: spaceScopes });
         }
 
         case "graph": {

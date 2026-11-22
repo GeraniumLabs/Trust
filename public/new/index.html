@@ -87,7 +87,7 @@ h2{font-size:18px;margin:32px 0 10px}
     const spaces = await r.json();
     $("mine").hidden = false;
     $("list").innerHTML = spaces.length
-      ? spaces.map((x) => `<div class="space"><div class="top"><b>${esc(x.name || x.space)}</b><button class="ghost" data-key="${esc(x.space)}">New key</button></div><code>${esc(x.url)}</code><span class="hint">Made ${new Date(x.created_at).toLocaleDateString()}</span></div>`).join("")
+      ? spaces.map((x) => `<div class="space"><div class="top"><a href="/space/?id=${esc(x.space)}"><b>${esc(x.name || x.space)}</b></a><button class="ghost" data-key="${esc(x.space)}">New key</button></div><code>${esc(x.url)}</code><span class="hint">Made ${new Date(x.created_at).toLocaleDateString()}</span></div>`).join("")
       : `<p class="empty">None yet.</p>`;
   }
 
