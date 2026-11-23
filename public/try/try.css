@@ -1,0 +1,81 @@
+/* The simple demo. Tokens from /brand.css. */
+* { box-sizing: border-box; min-width: 0; }
+body { margin: 0; background: var(--steel); color: var(--ink); font: 16px/1.55 var(--sans); overflow-x: clip; }
+a { color: var(--ink); text-underline-offset: .18em; }
+:focus-visible { outline: 3px solid var(--k-recall); outline-offset: 3px; border-radius: 3px; }
+[hidden] { display: none !important; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+.bar { max-width: 1120px; margin: 0 auto; padding: 22px 24px 0; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 24px; }
+.bar nav { display: flex; gap: 20px; font-size: 15px; font-weight: 500; }
+.bar nav a { text-decoration: none; } .bar nav a:hover { text-decoration: underline; }
+
+main { max-width: 1120px; margin: 0 auto; padding: 28px 24px 72px; }
+.intro h1 { font: 900 clamp(44px, 7vw, 76px)/.9 var(--display); margin: 0 0 14px; text-wrap: balance; }
+.intro p { color: var(--muted); font-size: 18px; max-width: 40rem; margin: 0 0 32px; }
+
+.layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 40px; align-items: start; }
+
+/* Steps: one at a time is live; finished ones fold to their heading. */
+.steps { list-style: none; margin: 0; padding: 0; counter-reset: s; display: grid; gap: 0; }
+.step { counter-increment: s; position: relative; padding: 0 0 22px 52px; }
+.step::before { content: counter(s); position: absolute; left: 0; top: -2px; width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; font: 900 20px/1 var(--display); border: 3px solid var(--ink); background: var(--steel); }
+.step::after { content: ""; position: absolute; left: 16.5px; top: 36px; bottom: 0; width: 3px; background: var(--rule); }
+.step:last-child::after { display: none; }
+.step h2 { font: 800 28px/1 var(--display); margin: 4px 0 8px; }
+.step p { margin: 0 0 14px; color: var(--muted); }
+.step.done::before { content: "✓"; background: var(--ink); color: var(--steel); font-family: var(--sans); font-size: 17px; }
+.step.done::after { background: var(--ink); }
+.step.done p, .step.done button, .step.todo p, .step.todo button { display: none; }
+.step.todo { opacity: .5; }
+.step.stale-step::before { border-color: var(--red); }
+.step.done.stale-step::before { background: var(--red); border-color: var(--red); color: #fff; }
+
+button, .btn { font: 600 16px var(--sans); min-height: 48px; padding: 0 22px; border-radius: 3px; border: 2px solid var(--ink); background: var(--ink); color: var(--steel); cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; }
+button:hover, .btn.primary:hover { background: var(--shale); border-color: var(--shale); }
+button[aria-busy="true"] { opacity: .6; cursor: progress; }
+.btn.ghost { background: transparent; color: var(--ink); }
+.btn.ghost:hover { background: var(--sheet); border-color: var(--ink); }
+
+/* Stage: the tags as they stand, and the custody chain. */
+.stage { background: var(--sheet); border: 1px solid var(--rule); border-radius: 4px; padding: 22px 22px 18px; min-height: 360px; position: sticky; top: 16px; }
+.say { margin: 0 0 18px; font-size: 16px; }
+.say b { font-weight: 700; }
+.say .err { color: var(--red-text); }
+.tags { display: grid; gap: 16px; }
+.tags .tag { transition: opacity .2s; overflow: hidden; }
+.tags .tag h3 { font: 800 26px/1 var(--display); margin: 0 0 10px; color: var(--tag-ink); }
+.tags .tag dl { margin: 0; display: grid; grid-template-columns: 6.5em minmax(0, 1fr); gap: 3px 10px; font-size: 14px; line-height: 1.4; }
+.tags .tag dd { margin: 0; }
+.tags .tag.superseded { opacity: .6; }
+.tags .tag.superseded h3 { text-decoration: line-through; text-decoration-thickness: 2px; }
+.tags .tag .note { display: block; margin-top: 8px; font: 700 14px var(--sans); }
+.tags .tag.fresh { animation: drop .45s ease-out; }
+@keyframes drop { from { transform: translateY(-10px) rotate(-1.5deg); opacity: 0; } to { transform: none; opacity: 1; } }
+
+.custody h3 { font: 800 22px/1 var(--display); margin: 24px 0 12px; }
+.chainv { list-style: none; margin: 0; padding: 0; }
+.chainv li { position: relative; display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 0 12px; padding: 0 0 12px; font-size: 14.5px; }
+.chainv li::before { content: ""; position: absolute; left: 7.5px; top: 18px; bottom: 0; width: 3px; background: var(--ink); }
+.chainv li:last-child::before { display: none; }
+.chainv li.broken::before { background: repeating-linear-gradient(180deg, var(--red) 0 6px, transparent 6px 11px); }
+.chainv .ring { width: 18px; height: 18px; border-radius: 50%; border: 3px solid var(--ink); background: var(--sheet); margin-top: 2px; }
+.chainv .ring.tagged { background: var(--manila); }
+.chainv .ring.stale { border-color: var(--red); background: var(--red); }
+.chainv .when { display: block; font-size: 12px; color: var(--faint); }
+
+.call { margin-top: 18px; font-size: 14px; color: var(--muted); }
+.call summary { cursor: pointer; min-height: 32px; display: flex; align-items: center; }
+.call pre { margin: 8px 0 0; padding: 12px 14px; background: var(--ink); color: var(--steel); border-radius: 3px; overflow-x: auto; font: 12.5px/1.5 var(--mono); white-space: pre-wrap; word-break: break-word; }
+
+.finish { margin-top: 36px; padding-top: 28px; border-top: 1px solid var(--rule); }
+.finish p { font-size: 18px; margin: 0 0 18px; max-width: 40rem; }
+.ctas { display: flex; flex-wrap: wrap; gap: 12px; }
+
+.next { display: none; margin-top: 18px; }
+@media (max-width: 860px) {
+  .layout { grid-template-columns: minmax(0, 1fr); gap: 24px; }
+  .next:not([hidden]) { display: inline-flex; }
+  .stage { position: static; min-height: 0; }
+}
+@media (prefers-reduced-motion: reduce) { .tags .tag.fresh { animation: none; } }
