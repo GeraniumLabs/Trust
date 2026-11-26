@@ -75,6 +75,40 @@ async function signedIn(req: Request, env: AuthEnv, user: User, to: string) {
   return new Response(null, { status: 302, headers: h });
 }
 
+// GitHub rejects requests without a User-Agent, and Workers' fetch sends none.
+const UA = "trust (+https://github.com/GeraniumLabs/Trust)";
+
+interface TokenResult { access_token?: string; error?: string; error_description?: string; status?: number }
+
+/** Trade the callback's code for a token. GitHub answers 200 with { error } for most failures. */
+async function exchangeCode(env: AuthEnv, code: string, redirectUri: string): Promise<TokenResult> {
+  try {
+    const r = await fetch("https://github.com/login/oauth/access_token", {
+      method: "POST",
+      headers: { accept: "application/json", "content-type": "application/json", "user-agent": UA },
+      body: JSON.stringify({ client_id: env.GITHUB_CLIENT_ID, client_secret: env.GITHUB_CLIENT_SECRET, code, redirect_uri: redirectUri }),
+    });
+    const text = await r.text();
+    try {
+      return { ...(JSON.parse(text) as TokenResult), status: r.status };
+    } catch {
+      return { error: "non_json_response", error_description: text.slice(0, 200), status: r.status };
+    }
+  } catch (e) {
+    return { error: "fetch_failed", error_description: String(e) };
+  }
+}
+
+/** A short, secret-free hint for the person, so a config problem is visible without reading logs. */
+function tokenHint(error?: string) {
+  const hints: Record<string, string> = {
+    incorrect_client_credentials: "This Trust server's GITHUB_CLIENT_ID or GITHUB_CLIENT_SECRET doesn't match its GitHub OAuth app.",
+    redirect_uri_mismatch: "The GitHub OAuth app's callback URL doesn't match this site's /auth/callback.",
+    bad_verification_code: "The sign-in code expired or was already used.",
+  };
+  return error ? ` <small>(${hints[error] ?? `GitHub said: ${error.replace(/[^a-z0-9_]/gi, "")}`})</small>` : "";
+}
+
 const page = (status: number, text: string) =>
   new Response(`<!DOCTYPE html><meta name="viewport" content="width=device-width"><title>Trust</title><body style="font:16px/1.5 system-ui;max-width:520px;margin:40px auto;padding:0 20px"><p>${text}</p><p><a href="/new/">Back</a></p>`, { status, headers: { "content-type": "text/html; charset=utf-8" } });
 
@@ -112,13 +146,12 @@ export async function authRoutes(req: Request, env: AuthEnv, url: URL): Promise<
     if (!st || st.nonce !== url.searchParams.get("state")) return page(400, "That sign-in link expired or was opened in another browser. Try signing in again.");
     const code = url.searchParams.get("code");
     if (!code) return page(400, "GitHub didn't sign you in. Try again.");
-    const tok = await fetch("https://github.com/login/oauth/access_token", {
-      method: "POST",
-      headers: { accept: "application/json", "content-type": "application/json" },
-      body: JSON.stringify({ client_id: env.GITHUB_CLIENT_ID, client_secret: env.GITHUB_CLIENT_SECRET, code, redirect_uri: `${url.origin}/auth/callback` }),
-    }).then((r) => r.json<any>()).catch(() => null);
-    if (!tok?.access_token) return page(502, "GitHub didn't confirm the sign-in. Try again.");
-    const me = await fetch("https://api.github.com/user", { headers: { authorization: `Bearer ${tok.access_token}`, "user-agent": "trust", accept: "application/vnd.github+json" } })
+    const tok = await exchangeCode(env, code, `${url.origin}/auth/callback`);
+    if (!tok.access_token) {
+      console.error("GitHub token exchange failed", { status: tok.status, error: tok.error, description: tok.error_description });
+      return page(502, `GitHub didn't confirm the sign-in. Try again.${tokenHint(tok.error)}`);
+    }
+    const me = await fetch("https://api.github.com/user", { headers: { authorization: `Bearer ${tok.access_token}`, "user-agent": UA, accept: "application/vnd.github+json" } })
       .then((r) => (r.ok ? r.json<any>() : null)).catch(() => null);
     if (!me?.id || !me?.login) return page(502, "Couldn't read your GitHub account. Try again.");
     return signedIn(req, env, { id: `gh-${me.id}`, login: me.login }, st.to);
