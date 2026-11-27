@@ -90,6 +90,7 @@ For local development, run with `--var TRUST_DEV_LOGIN:1 --var TRUST_SESSION_KEY
 | POST | `/api/spaces` | signed in, or own Worker | Create a persistent space with its own scopes. Returns the admin token |
 | GET | `/api/me`, `/api/me/spaces` | signed in | Who's signed in; their spaces (no keys) |
 | POST | `/api/me/spaces/:id/admin-key` | the space's owner | A new admin token; earlier ones stop working |
+| POST | `/api/spaces/:id/admin-key` | the operator's own Worker | A new admin token for a space; earlier ones stop working. Not reachable from the internet |
 | GET | `activity` | admin, or the signed-in owner | One newest-first stream: writes, recalls, judge decisions, status changes, conflicts, sessions, merges, refusals |
 | GET / DELETE | `/api/spaces/:id` | admin | The space and its scopes; or delete it and all its memory (`?confirm=<id>`) |
 | GET / POST | `scopes` | admin | List scopes, or add one `{ id, label, kind, client? }` |
@@ -150,7 +151,7 @@ A model call that fails or takes longer than `TRUST_JUDGE_TIMEOUT_MS` (1,500 ms 
 
 Agents connect to `/mcp/:space` (MCP over streamable HTTP, JSON responses) with their session token as `Authorization: Bearer trust_agt_...`. Tools: `memory_recall`, `memory_remember`, `memory_relate`, `memory_retract`, `memory_why`, `memory_impact`. Calls go through the same HTTP API with the same token, so an agent can't reach another matter over MCP either. The old `/mcp/:demo/:session` form is refused, as is the admin token.
 
-## Guarantees the tests check (`npm test`, 41 checks)
+## Guarantees the tests check (`npm test`, 42 checks)
 
 - Origin comes from the session; entries without sources are capped at `unverified`.
 - No cross-matter reads or writes, over HTTP or MCP, and refusals leak nothing.
@@ -167,7 +168,7 @@ Agents connect to `/mcp/:space` (MCP over streamable HTTP, JSON responses) with 
 - An unsure judgment takes no action and returns a note to the agent; the agent's `relate` decision is applied with the same rules and closes the note.
 - No token, a made-up token, another space's token, or an agent token claiming a different session is refused; agents can't start sessions, roll back, wall, or see the graph; an agent can't read another matter's provenance.
 - Ending a session revokes its token over HTTP and MCP; tokens never appear in any response after issue.
-- A visitor must sign in to create a persistent space and owns it: only they can get it a new admin key, which revokes the old one; forged sign-in cookies are refused. Demo creation is limited per visitor. A persistent space gets their own scope ids and entry prefixes, work without a precedent scope, and are deleted only by their admin with confirmation.
+- A visitor must sign in to create a persistent space and owns it: only they can get it a new admin key, which revokes the old one; forged sign-in cookies are refused. Demo creation is limited per visitor. A persistent space gets their own scope ids and entry prefixes, work without a precedent scope, and are deleted only by their admin with confirmation. The operator's own Worker can also get a persistent space a fresh admin key — the old one stops working, live agent sessions keep their tokens, and requests from the internet can't reach that route even with the old key.
 
 ## Demo limits
 
