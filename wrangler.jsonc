@@ -3,8 +3,10 @@
   "name": "trust",
   "main": "src/index.ts",
   "compatibility_date": "2026-11-01",
-  // Static site: the landing page at /, the interactive demo at /demo/. /api/* and /mcp/* go to the Worker.
-  "assets": { "directory": "./public", "binding": "ASSETS", "run_worker_first": ["/api/*", "/mcp/*", "/auth/*"] },
+  // Static site: the landing page at /, the interactive demo at /demo/. /api/* and /mcp/* go to the
+  // Worker, and so does /new: TRUST_DISABLE_NEW=1 answers 404 there, and otherwise the Worker hands
+  // the request to the static site, which serves the same page as before.
+  "assets": { "directory": "./public", "binding": "ASSETS", "run_worker_first": ["/api/*", "/mcp/*", "/auth/*", "/new", "/new/*"] },
   "durable_objects": {
     "bindings": [
       { "name": "REGISTRY", "class_name": "Registry" },

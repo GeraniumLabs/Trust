@@ -425,6 +425,15 @@ if (process.env.TRUST_SPACES_PER_IP) {
   });
 }
 
+// ---------- the /new page, where a person makes a space in the browser ----------
+// test/disabled.mjs checks the other side of this: TRUST_DISABLE_NEW=1 answers 404 instead.
+await test("/new serves the page: /new redirects to /new/, which is 200", async () => {
+  const slashless = await fetch(`${BASE}/new`, { redirect: "manual" });
+  assert.equal(slashless.status, 307);
+  assert.equal(slashless.headers.get("location"), "/new/");
+  assert.equal((await fetch(`${BASE}/new/`)).status, 200);
+});
+
 // ---------- signing in to own spaces (needs TRUST_SESSION_KEY and TRUST_DEV_LOGIN=1, as scripts/ci.sh sets) ----------
 if (process.env.TRUST_DEV_LOGIN === "1") {
   const outside = { "cf-connecting-ip": "198.51.100.7" }; // a visitor from the internet, not the operator's own Worker
