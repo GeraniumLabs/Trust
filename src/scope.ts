@@ -582,6 +582,12 @@ export class Scope extends DurableObject<ScopeEnv> {
     return this.get(id);
   }
 
+  /** Stored memories in this scope, whatever their status: one COUNT(*), nothing read into memory. */
+  async count(): Promise<number> {
+    this.init();
+    return Number(this.ctx.storage.sql.exec(`SELECT COUNT(*) AS n FROM entries`).one().n);
+  }
+
   async recall(query: string, session: string, step: number, limit = 5) {
     this.init();
     const sql = this.ctx.storage.sql;

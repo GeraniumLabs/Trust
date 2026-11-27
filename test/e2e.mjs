@@ -409,6 +409,64 @@ await test("the judge endpoint scores a pair without storing it", async () => {
   assert.equal(out[0].relation, "contradicts");
 });
 
+// ---------- stats: stored memory count by scope, per space ----------
+{
+  const mk = async () => {
+    const r = (await api("POST", "/demo")).data;
+    return { id: r.demo, admin: r.adminToken };
+  };
+  // Write n distinct memories into one scope; returns the session and the last entry.
+  const write = async (space, scope, n, tag) => {
+    const sess = (await api("POST", `/demo/${space.id}/sessions`, { scope, agent: "claude-code", supervisor: "Casey" }, space.admin)).data;
+    let last;
+    for (let i = 0; i < n; i++)
+      last = (await api("POST", `/demo/${space.id}/remember`, { session: sess.id, title: `Note ${i} for ${tag}`, body: `Fact ${i} about ${tag}: stored in ${scope}.`, sources: [{ uri: `${scope}/notes-${i}.md`, hash: String(i) }] }, sess.token)).data;
+    return { sess, last };
+  };
+
+  const a = await mk();
+  const aw = await write(a, "northwind", 3, "alpha");
+  await write(a, "contoso", 1, "alpha");
+
+  await test("stats counts stored memories by scope, and the total", async () => {
+    const r = (await api("GET", `/demo/${a.id}/stats`, undefined, a.admin)).data;
+    assert.equal(r.space, a.id);
+    assert.equal(r.scopes.northwind, 3);
+    assert.equal(r.scopes.contoso, 1);
+    assert.equal(r.scopes.precedent, 0, "a scope nothing was written to counts as zero");
+    assert.equal(r.total, 4);
+  });
+
+  await test("a retracted memory is still stored, so stats still counts it", async () => {
+    await api("POST", `/demo/${a.id}/retract`, { session: aw.sess.id, scope: "northwind", entry: aw.last.id, reason: "wrong scope detail" }, aw.sess.token);
+    const r = (await api("GET", `/demo/${a.id}/stats`, undefined, a.admin)).data;
+    assert.equal(r.scopes.northwind, 3);
+    assert.equal(r.total, 4);
+  });
+
+  await test("stats needs the space's admin token", async () => {
+    assert.equal((await api("GET", `/demo/${a.id}/stats`)).status, 401, "no token");
+    assert.equal((await api("GET", `/demo/${a.id}/stats`, undefined, aw.sess.token)).status, 403, "an agent's token isn't enough");
+    assert.equal((await api("POST", `/demo/${a.id}/stats`, {}, a.admin)).status, 404, "GET only");
+  });
+
+  const b = await mk();
+  await write(b, "northwind", 1, "beta");
+
+  await test("stats shows one space only its own memories", async () => {
+    const r = (await api("GET", `/demo/${b.id}/stats`, undefined, b.admin)).data;
+    assert.deepEqual(r.scopes, { northwind: 1, contoso: 0, precedent: 0 });
+    assert.equal(r.total, 1);
+    const again = (await api("GET", `/demo/${a.id}/stats`, undefined, a.admin)).data;
+    assert.equal(again.total, 4, "space A's stats didn't move with B's writes");
+  });
+
+  await test("another space's admin token can't read stats", async () => {
+    assert.equal((await api("GET", `/demo/${a.id}/stats`, undefined, b.admin)).status, 401);
+    assert.equal((await api("GET", `/demo/${b.id}/stats`, undefined, a.admin)).status, 401);
+  });
+}
+
 // ---------- creating spaces is open, within limits ----------
 // Needs the Worker to run with TRUST_SPACES_PER_IP set (scripts/ci.sh uses 3).
 if (process.env.TRUST_SPACES_PER_IP) {
