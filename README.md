@@ -66,6 +66,8 @@ Every route below works on both, as `/api/demo/:id/...` or `/api/spaces/:id/...`
 
 **Who can create spaces.** A visitor from the internet needs to be signed in to create a persistent space. Calls from the operator's own Workers over a service binding carry no `CF-Connecting-IP`, which Cloudflare sets on every request from outside, so they may create spaces for their users without a person signed in (Mergery's one-click Trust works this way). Demo spaces stay open to anyone.
 
+**Turning the open site off.** An operator who runs their own front end over a service binding can set `TRUST_DISABLE_DEMO=1` and `TRUST_DISABLE_NEW=1`: `POST /api/demo` and the `/new` page then answer 404, while persistent spaces and every other route keep working. Unset (or any other value), both behave as above.
+
 **Limits.** 20 persistent spaces per person a day, 10 demo spaces per visitor IP a day, and 1,000 new spaces on the server a day: `TRUST_SPACES_PER_USER`, `TRUST_SPACES_PER_IP`, `TRUST_SPACES_PER_DAY` (`0` is no limit). Past a limit, creation returns 429 with `Retry-After`.
 
 **Looking inside.** `/space/?id=<id>` shows a space to its signed-in owner (or anyone who pastes its admin key into the page). **Memory** threads each source file to the memories that cite it, so you can see what depends on a file and which threads went stale or contested when it changed; click a memory for where it came from, who agreed, who recalled it, and its history. **Activity** is the space's log with a lane per agent session, merges drawn across every lane. A signed-in owner can read, not change: changes still take the admin key. `node scripts/seed-space.mjs` fills a local space with a sample session to try it.

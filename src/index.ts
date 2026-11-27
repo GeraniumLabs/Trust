@@ -17,6 +17,11 @@ interface Env extends AuthEnv {
   TRUST_SPACES_PER_USER?: string; // persistent spaces per person a day, default 20
   TRUST_SPACES_PER_IP?: string; // demo spaces per visitor IP a day, default 10
   TRUST_SPACES_PER_DAY?: string; // all new spaces on the server a day, default 1000
+  // "1" turns a piece of the open site off, for an operator who runs their own front end over a
+  // service binding instead: TRUST_DISABLE_DEMO makes POST /api/demo answer 404, TRUST_DISABLE_NEW
+  // makes the /new page answer 404. Unset (or any other value), both keep today's behaviour.
+  TRUST_DISABLE_DEMO?: string;
+  TRUST_DISABLE_NEW?: string;
 }
 
 const DEMO_SCOPES: ScopeDef[] = [
@@ -35,6 +40,13 @@ function validScope(s: any): ScopeDef {
 const json = (data: unknown, status = 200) =>
   new Response(JSON.stringify(data), { status, headers: { "content-type": "application/json", "cache-control": "no-store" } });
 const fail = (message: string, status = 400) => json({ error: message }, status);
+
+// A 404 for a browser page, in the same plain style as the sign-in pages in auth.ts.
+const notFoundPage = () =>
+  new Response(
+    `<!DOCTYPE html><meta name="viewport" content="width=device-width"><title>Trust</title><body style="font:16px/1.5 system-ui;max-width:520px;margin:40px auto;padding:0 20px"><p>Not found.</p>`,
+    { status: 404, headers: { "content-type": "text/html; charset=utf-8" } },
+  );
 
 // Opaque, stable reference so promoted precedent can point to "a matter" without naming it.
 async function opaqueRef(text: string) {
@@ -123,6 +135,12 @@ const handler = {
     const signin = await authRoutes(req, env, url);
     if (signin) return signin;
     if (url.pathname.startsWith("/mcp/")) return mcp(req, env, url);
+    // The /new page: wrangler.jsonc runs the Worker first for /new so this check can see it. Unset,
+    // the Worker hands the request to the static site, which serves the same page as before.
+    if (url.pathname === "/new" || url.pathname.startsWith("/new/")) {
+      if (env.TRUST_DISABLE_NEW === "1") return notFoundPage();
+      return env.ASSETS.fetch(req);
+    }
     if (!url.pathname.startsWith("/api/")) return env.ASSETS.fetch(req);
 
     const parts = url.pathname.split("/").filter(Boolean); // api, demo, :id, ...rest
@@ -150,6 +168,11 @@ const handler = {
       // Persistent spaces need a signed-in person (or the operator's own Worker); demos are open.
       if (parts[1] === "spaces" && parts.length === 2 && req.method === "POST" && !user && !internal(req)) {
         return json({ error: "Sign in with GitHub to create a space.", signIn: signInReady(env) ? "/auth/github?return=/new/" : null }, 401);
+      }
+      // TRUST_DISABLE_DEMO=1: no throwaway demo spaces, so POST /api/demo answers 404, before any
+      // limit is counted. For an operator whose own front end replaces the demos.
+      if (parts[1] === "demo" && parts.length === 2 && req.method === "POST" && env.TRUST_DISABLE_DEMO === "1") {
+        return fail("Not found", 404);
       }
       if ((parts[1] === "demo" || parts[1] === "spaces") && parts.length === 2 && req.method === "POST") {
         const limited = await creationLimit(req, env, parts[1] === "spaces" ? user : null);

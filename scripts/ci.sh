@@ -36,6 +36,13 @@ echo "== Heuristic eval"
 BASE_URL=http://localhost:8787 node eval/score.mjs --no-save --max-costly 0 --min-tasks 8
 cleanup; PIDS=(); sleep 2
 
+echo "== Demo and /new turned off (TRUST_DISABLE_DEMO=1, TRUST_DISABLE_NEW=1)"
+npx wrangler dev -c .wrangler.offline.jsonc --port 8787 --var TRUST_JUDGE:heuristic --var TRUST_DISABLE_DEMO:1 --var TRUST_DISABLE_NEW:1 > /tmp/trust-disabled.log 2>&1 &
+PIDS+=($!)
+wait_for http://localhost:8787/ /tmp/trust-disabled.log
+BASE_URL=http://localhost:8787 node test/disabled.mjs
+cleanup; PIDS=(); sleep 2
+
 echo "== Oracle eval"
 unset TRUST_SPACES_PER_IP TRUST_DEV_LOGIN
 node eval/oracle.mjs > /tmp/trust-oracle.log 2>&1 &
