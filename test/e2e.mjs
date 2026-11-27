@@ -581,6 +581,22 @@ if (process.env.TRUST_DEV_LOGIN === "1") {
     assert.ok(rec.results.every((x) => !x.advisory));
   });
 
+  await test("the operator's own Worker can rotate a space's admin key; nobody else can reach that route", async () => {
+    const outside = { "cf-connecting-ip": "203.0.113.9" }; // a visitor from the internet, not the operator's own Worker
+    const pub = (method, path, body, token) => fetch(`${BASE}/api${path}`, { method, headers: { "content-type": "application/json", ...outside, ...(token ? { authorization: `Bearer ${token}` } : {}) }, body: body ? JSON.stringify(body) : undefined });
+    assert.equal((await pub("POST", `/spaces/${space}/admin-key`, {})).status, 404, "public requests get a plain 404");
+    assert.equal((await pub("POST", `/spaces/${space}/admin-key`, {}, spaceAdmin)).status, 404, "even with the space's own admin key");
+    assert.equal((await api("POST", `/spaces/does-not-exist/admin-key`, {})).status, 404, "unknown space");
+    const r = (await api("POST", `/spaces/${space}/admin-key`, {})).data; // no CF-Connecting-IP: the operator's own Worker
+    assert.equal(r.space, space);
+    assert.match(r.adminToken, /^trust_adm_/);
+    assert.notEqual(r.adminToken, spaceAdmin);
+    assert.equal((await api("GET", `/spaces/${space}`, undefined, spaceAdmin)).status, 401, "the old key stops working");
+    assert.equal((await api("GET", `/spaces/${space}`, undefined, r.adminToken)).status, 200, "the new one works");
+    assert.equal((await api("POST", `/spaces/${space}/remember`, { title: "Rotation kept the session", body: "A new admin key does not end live agent sessions.", sources: [{ uri: "src/rotation.md", hash: "r0t8" }] }, sess.token)).status, 200, "live sessions keep their own tokens");
+    spaceAdmin = r.adminToken; // the rest of this section carries the new key
+  });
+
   await test("an admin can add a scope; agents can't", async () => {
     assert.equal((await api("POST", `/spaces/${space}/scopes`, { id: "docs", kind: "project" }, sess.token)).status, 403);
     assert.equal((await api("POST", `/spaces/${space}/scopes`, { id: "docs", label: "Docs site", kind: "project" }, spaceAdmin)).status, 200);

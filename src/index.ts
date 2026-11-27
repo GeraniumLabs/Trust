@@ -200,6 +200,16 @@ const handler = {
         if (user) await (env.REGISTRY.get(env.REGISTRY.idFromName(`__user:${user.id}`)) as unknown as Registry).own(id, name ?? "");
         return json({ space: id, persistent: true, scopes: defs, adminToken });
       }
+      // POST /api/spaces/:id/admin-key -> a new admin token for a space, from the operator's own
+      // Worker over a service binding (the same internal rule as space creation above): earlier
+      // admin tokens stop working, the new one is returned once. Public requests get a plain 404,
+      // so a leaked key can't be used to mint a fresh one from outside.
+      if (parts[1] === "spaces" && parts[3] === "admin-key" && !parts[4] && req.method === "POST") {
+        if (!internal(req)) return fail("Not found", 404);
+        const reg = env.REGISTRY.get(env.REGISTRY.idFromName(parts[2])) as unknown as Registry;
+        if (!(await reg.exists())) return fail("Not found", 404);
+        return json({ space: parts[2], url: `${url.origin}/api/spaces/${parts[2]}`, adminToken: await reg.newAdminKey("operator") });
+      }
       // Demo and persistent spaces share every other route: /api/demo/:id/... and /api/spaces/:id/...
       if ((parts[1] !== "demo" && parts[1] !== "spaces") || !parts[2]) return fail("Not found", 404);
 
