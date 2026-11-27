@@ -480,6 +480,22 @@ const handler = {
           return json({ ...state, graphs: scopes });
         }
 
+        // GET stats -> stored memory count per scope and the space total, for dashboards and plan
+        // caps. One COUNT(*) per scope DO; entries are never deleted row-by-row, so this is a
+        // short in-memory scan, cheap enough to call daily per space.
+        case "stats": {
+          { const denied = needAdmin(); if (denied) return denied; }
+          if (req.method !== "GET") return fail("Not found", 404);
+          const counts: Record<string, number> = {};
+          let total = 0;
+          for (const s of spaceScopes) {
+            const n = await scopeStub(s.id).count();
+            counts[s.id] = n;
+            total += n;
+          }
+          return json({ space: demo, scopes: counts, total });
+        }
+
         default:
           return fail("Not found", 404);
       }

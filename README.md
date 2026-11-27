@@ -119,6 +119,7 @@ For local development, run with `--var TRUST_DEV_LOGIN:1 --var TRUST_SESSION_KEY
 | GET | `relations/:scope` | admin | Every judgment made on writes: relation, confidence, judge, and what Trust did |
 | POST | `judge` | admin | Judge `{ newer, older[] }` without storing anything (used by `eval/`) |
 | GET | `graph` | admin | Everything, for the demo's graph view |
+| GET | `stats` | admin, or the signed-in owner | Stored memory count per scope, and the space total. One `COUNT(*)` per scope, cheap to poll |
 
 ## The judge
 
